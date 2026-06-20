@@ -117,9 +117,9 @@ def goi_gemini(prompt_text, retries=3, wait_giay=20):
 def lay_tin_trong_nuoc():
     print("\n[1/5] Đang lấy tin trong nước (Google News RSS)...")
     nguon = {
-        "Tin Nổi Bật (Trang chủ)": "https://news.google.com/rss?hl=vi&gl=VN&ceid=VN:vi",
         "Tin Doanh Nghiệp": "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FuWnBHZ0pXVGlnQVAB?hl=vi&gl=VN&ceid=VN:vi",
         "Kinh tế Vĩ mô": "https://news.google.com/rss/search?q=(kinh+tế+OR+tài+chính+OR+ngân+hàng)+when:24h&hl=vi&gl=VN&ceid=VN:vi",
+        "Tin Thời sự": "https://news.google.com/rss?hl=vi&gl=VN&ceid=VN:vi",
     }
 
     danh_sach_tin = []
@@ -631,7 +631,7 @@ def xuat_bao_cao_pdf(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediast
 
     if not df_cafef.empty:
         html_content += "<h2 class='bg-cafef'>☕ TIMELINE CAFEF: NHỊP ĐẬP THỊ TRƯỜNG</h2>"
-        html_content += "<table><thead><tr><th class='col-time'>Giờ cập nhật</th><th class='col-title'>Tiêu đề Bài báo</th><th class='col-summary'>Tóm tắt (Đã kiểm chứng bởi AI)</th></tr></thead>"
+        html_content += "<table><thead><tr><th class='col-time'>Thời gian</th><th class='col-title'>Tiêu đề Bài báo</th><th class='col-summary'>Tóm tắt Insight</th></tr></thead>"
         for _, row in df_cafef.iterrows():
             tieu_de = str(row.get("Tiêu đề", row.get("Tiêu đề Bài báo", "Không có tiêu đề")))
             parts = tieu_de.rsplit(" - ", 1)
@@ -646,7 +646,7 @@ def xuat_bao_cao_pdf(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediast
 
     if not df_cafebiz.empty:
         html_content += "<h2 class='bg-cafebiz'>🚀 TIMELINE CAFEBIZ: TIN TÀI CHÍNH ĐÃ LỌC</h2>"
-        html_content += "<table><thead><tr><th class='col-time'>Thời gian</th><th class='col-title'>Tiêu đề Bài báo</th><th class='col-summary'>Tóm tắt Insight (Bởi AI)</th></tr></thead>"
+        html_content += "<table><thead><tr><th class='col-time'>Thời gian</th><th class='col-title'>Tiêu đề Bài báo</th><th class='col-summary'>Tóm tắt Insight</th></tr></thead>"
         for _, row in df_cafebiz.iterrows():
             tieu_de = str(row.get("Tiêu đề bài báo", row.get("Tiêu đề", "Không có tiêu đề")))
             parts = tieu_de.rsplit(" - ", 1)
@@ -667,7 +667,7 @@ def xuat_bao_cao_pdf(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediast
 
     if not df_quoc_te.empty:
         html_content += "<h2 class='bg-quoc-te'>🌎 ĐIỂM TIN VĨ MÔ TOÀN CẦU</h2>"
-        html_content += "<table><thead><tr><th class='col-time'>Thời gian (VN)</th><th class='col-title'>Tiêu đề (Gốc) & Chuyên mục</th><th class='col-summary'>Bản tóm tắt chi tiết (AI)</th></tr></thead>"
+        html_content += "<table><thead><tr><th class='col-time'>Thời gian (Giờ VN)</th><th class='col-title'>Tiêu đề (Gốc) & Chuyên mục</th><th class='col-summary'>Tóm tắt Insight</th></tr></thead>"
         for _, row in df_quoc_te.iterrows():
             tieu_de = row.get("Tiêu đề gốc", row.get("Tiêu đề", "Không có tiêu đề"))
             parts = tieu_de.rsplit(" - ", 1)
@@ -692,7 +692,7 @@ def xuat_bao_cao_pdf(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediast
 
     if not df_mediastack.empty:
         html_content += "<h2 class='bg-mediastack'>🌐 DỮ LIỆU TÀI CHÍNH TOÀN CẦU (MEDIASTACK)</h2>"
-        html_content += "<table><thead><tr><th class='col-time'>Thời gian</th><th class='col-title'>Tiêu đề Bài báo</th><th class='col-summary'>Tóm tắt Insight (Bởi AI)</th></tr></thead>"
+        html_content += "<table><thead><tr><th class='col-time'>Thời gian</th><th class='col-title'>Tiêu đề Bài báo</th><th class='col-summary'>Tóm tắt Insight</th></tr></thead>"
         for _, row in df_mediastack.iterrows():
             tieu_de = str(row.get("Tiêu đề bài báo", "Không có tiêu đề"))
             parts = tieu_de.rsplit(" - ", 1)
