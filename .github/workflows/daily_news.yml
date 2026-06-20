@@ -1,0 +1,53 @@
+name: Bao cao tin tuc thi truong hang ngay
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  build-and-send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cai dat Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cai dat thu vien he thong cho WeasyPrint + Font chu
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | sudo debconf-set-selections
+          sudo apt-get install -y \
+            libpango-1.0-0 libpangoft2-1.0-0 libpangocairo-1.0-0 \
+            ttf-mscorefonts-installer fonts-symbola
+          sudo fc-cache -f -v
+
+      - name: Cai dat thu vien Python
+        run: pip install -r requirements.txt
+
+      - name: Chay script lay tin, xuat PDF, luu Drive, gui email
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MEDIA_STACK_API_KEY: ${{ secrets.MEDIA_STACK_API_KEY }}
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
+        run: python main.py
+
+      - name: Luu PDF lam Artifact (ban sao du phong, khong bat buoc)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bao-cao-tin-tuc
+          path: "*.pdf"
+          retention-days: 7
