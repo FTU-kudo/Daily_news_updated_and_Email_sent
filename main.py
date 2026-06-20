@@ -777,7 +777,7 @@ def gui_email(duong_dan_pdf, gio_hien_thi_footer):
     msg.set_content(
         "Kính chào Quý khách,\n\n"
         "Đính kèm là Báo cáo Phân tích Tin tức Thị trường được tổng hợp tự động trong ngày hôm nay.\n\n"
-        "Trân trọng,\nYSVN"
+        "Trân trọng,\nChứng Khoán Yuanta Việt Nam - YSVN"
     )
 
     mime_type, _ = mimetypes.guess_type(duong_dan_pdf)
