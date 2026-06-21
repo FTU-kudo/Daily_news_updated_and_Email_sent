@@ -318,7 +318,7 @@ def lay_tin_cafef(so_luong=15):
     return pd.DataFrame(danh_sach_tin)
 
 
-def lay_tin_cafebiz(so_luong=15, chuyen_muc_loc=("Kinh doanh", "Tài chính", "Chứng khoán", "Bất động sản", "Doanh nghiệp")):
+def lay_tin_cafebiz(so_luong=15, chuyen_muc_loc=("Kinh doanh", "Tài chính ngân hàng", "Chứng khoán", "Bất động sản", "Doanh nghiệp")):
     url = "https://cafebiz.vn/"
     print("  Đang quét CafeBiz (Trang chủ, lọc chuyên mục Kinh doanh)...")
     try:
@@ -392,9 +392,15 @@ def lay_tin_cafebiz(so_luong=15, chuyen_muc_loc=("Kinh doanh", "Tài chính", "C
         if idx >= so_luong:
             break
 
-    print(f"  -> Lấy được {len(danh_sach_tin)} bài CafeBiz.")
-    return pd.DataFrame(danh_sach_tin)
+    co_thoi_gian = sum(1 for t in danh_sach_tin if t["Thời gian"])
+    print(f"  -> Lấy được {len(danh_sach_tin)} bài thuộc {chuyen_muc_loc} "
+          f"({co_thoi_gian} bài có ngày giờ).")
 
+    if not danh_sach_tin:
+        print("  ⚠️ Không có bài nào khớp chuyên mục lọc trong luồng tin hiện tại. "
+              "Thử tăng so_luong hoặc nới rộng chuyen_muc_loc.")
+
+    return pd.DataFrame(danh_sach_tin)
 
 def tom_tat_voi_ai(df, ten_nguon):
     if df.empty:
