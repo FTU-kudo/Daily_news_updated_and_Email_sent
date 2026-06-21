@@ -825,7 +825,6 @@ def main():
         df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack
     )
 
-    upload_len_drive(duong_dan_pdf)
     gui_email(duong_dan_pdf, gio_hien_thi_footer)
 
     print("\n🎉 HOÀN TẤT TOÀN BỘ QUY TRÌNH.")
