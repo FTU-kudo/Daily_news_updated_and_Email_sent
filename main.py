@@ -617,15 +617,15 @@ def xuat_bao_cao_pdf(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediast
             link_goc = row.get("Link", "#")
 
             chuyen_muc = row.get("Chuyên mục", "")
-            if chuyen_muc == "Tin Thời sự":
-                tag_html = f"<div style='background-color: #fee2e2; color: #ef4444; padding: 3px 6px; border-radius: 3px; font-size: 8pt; font-weight: bold; display: inline-block; margin-bottom: 4px;'>{chuyen_muc}</div><br>"
-            elif chuyen_muc == "Tin Doanh Nghiệp":
+
+            if chuyen_muc == "Tin Doanh Nghiệp":
                 tag_html = f"<div style='background-color: #e0e7ff; color: #4f46e5; padding: 3px 6px; border-radius: 3px; font-size: 8pt; font-weight: bold; display: inline-block; margin-bottom: 4px;'>{chuyen_muc}</div><br>"
             elif chuyen_muc == "Kinh tế Vĩ mô":
                 tag_html = f"<div style='background-color: #dcfce3; color: #16a34a; padding: 3px 6px; border-radius: 3px; font-size: 8pt; font-weight: bold; display: inline-block; margin-bottom: 4px;'>{chuyen_muc}</div><br>"
+            elif chuyen_muc == "Tin Thời sự":
+                tag_html = f"<div style='background-color: #fee2e2; color: #ef4444; padding: 3px 6px; border-radius: 3px; font-size: 8pt; font-weight: bold; display: inline-block; margin-bottom: 4px;'>{chuyen_muc}</div><br>"
             else:
                 tag_html = ""
-
             html_content += f"<tbody><tr><td class='col-time'>{row['Thời gian']}</td><td class='col-title'>{tag_html}<a href='{link_goc}' style='color: inherit; text-decoration: none;'>{tieu_de}</a></td><td class='col-summary'>{tom_tat}</td></tr></tbody>"
         html_content += "</table>"
 
