@@ -1,8 +1,6 @@
 name: Bao cao tin tuc thi truong hang ngay
 
 on:
-  schedule:
-    - cron: "30 12 * * *"
   workflow_dispatch: {}
 
 jobs:
