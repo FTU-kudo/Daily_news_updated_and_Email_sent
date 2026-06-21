@@ -42,7 +42,7 @@ jobs:
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
-        run: python main.py
+        run: python -u main.py
 
       - name: Luu PDF lam Artifact (ban sao du phong, khong bat buoc)
         if: always()
