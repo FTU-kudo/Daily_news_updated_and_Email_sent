@@ -1,4 +1,4 @@
-name: TEST 123 SCHEDULE
+name: Bao cao tin tuc thi truong hang ngay
 
 on:
   schedule:
