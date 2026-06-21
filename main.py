@@ -617,7 +617,7 @@ def xuat_bao_cao_pdf(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediast
             link_goc = row.get("Link", "#")
 
             chuyen_muc = row.get("Chuyên mục", "")
-            if chuyen_muc == "Tin Nổi Bật (Trang chủ)":
+            if chuyen_muc == "Tin Thời sự":
                 tag_html = f"<div style='background-color: #fee2e2; color: #ef4444; padding: 3px 6px; border-radius: 3px; font-size: 8pt; font-weight: bold; display: inline-block; margin-bottom: 4px;'>{chuyen_muc}</div><br>"
             elif chuyen_muc == "Tin Doanh Nghiệp":
                 tag_html = f"<div style='background-color: #e0e7ff; color: #4f46e5; padding: 3px 6px; border-radius: 3px; font-size: 8pt; font-weight: bold; display: inline-block; margin-bottom: 4px;'>{chuyen_muc}</div><br>"
