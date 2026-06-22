@@ -31,16 +31,32 @@ jobs:
       - name: Cai dat thu vien Python
         run: pip install -r requirements.txt
 
-      - name: Chay script lay tin, xuat PDF, luu Drive, gui email
+      - name: Buoc 1 - Lay tin, tom tat AI, xuat PDF (khong gui email)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MEDIA_STACK_API_KEY: ${{ secrets.MEDIA_STACK_API_KEY }}
-          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
-          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: python -u main.py --build
+
+      - name: Buoc 2 - Cho den dung 8h00 sang VN (01:00 UTC)
+        run: |
+          python3 -c "
+          import datetime, time
+          now = datetime.datetime.utcnow()
+          target = now.replace(hour=1, minute=0, second=0, microsecond=0)
+          wait_seconds = (target - now).total_seconds()
+          if wait_seconds > 0:
+              print(f'Cho {wait_seconds:.0f} giay de den dung 01:00 UTC (08:00 VN)...')
+              time.sleep(wait_seconds)
+          else:
+              print('Da qua 8h00 VN (qua trinh chuan bi mat nhieu thoi gian hon du kien) -> gui email ngay.')
+          "
+
+      - name: Buoc 3 - Gui email luc 8h00 sang VN
+        env:
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
-        run: python -u main.py
+        run: python -u main.py --send-email
 
       - name: Luu PDF lam Artifact (ban sao du phong, khong bat buoc)
         if: always()
