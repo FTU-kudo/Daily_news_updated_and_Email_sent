@@ -27,6 +27,7 @@ import json
 import time
 import smtplib
 import mimetypes
+import argparse
 from email.message import EmailMessage
 
 import requests
@@ -127,7 +128,7 @@ def lay_tin_trong_nuoc():
     id_counter = 0
     for chuyen_muc, url in nguon.items():
         feed = feedparser.parse(url)
-        for entry in feed.entries[:10]:
+        for entry in feed.entries[:5]:
             try:
                 thoi_gian_goc = pd.to_datetime(entry.published, utc=True)
                 thoi_gian_str = thoi_gian_goc.tz_convert("Asia/Ho_Chi_Minh").strftime("%d/%m/%Y %H:%M")
@@ -205,7 +206,7 @@ def lay_tin_quoc_te():
     id_counter = 0
     for chuyen_muc, url in nguon.items():
         feed = feedparser.parse(url)
-        for entry in feed.entries[:10]:
+        for entry in feed.entries[:5]:
             try:
                 thoi_gian_goc = pd.to_datetime(entry.published, utc=True)
                 thoi_gian_str = thoi_gian_goc.tz_convert("Asia/Ho_Chi_Minh").strftime("%d/%m/%Y %H:%M")
@@ -269,7 +270,7 @@ TRẢ VỀ KẾT QUẢ BẮT BUỘC THEO ĐÚNG CẤU TRÚC JSON SAU:
 # ======================================================================
 # 3. CAFEF + CAFEBIZ (Cào dữ liệu trực tiếp)
 # ======================================================================
-def lay_tin_cafef(so_luong=15):
+def lay_tin_cafef(so_luong=8):
     url = "https://cafef.vn/thi-truong-chung-khoan.chn"
     print("\n[3/5] Đang quét CafeF (Thị trường Chứng khoán)...")
     try:
@@ -318,7 +319,7 @@ def lay_tin_cafef(so_luong=15):
     return pd.DataFrame(danh_sach_tin)
 
 
-def lay_tin_cafebiz(so_luong=15, chuyen_muc_loc=("Kinh doanh", "Tài chính ngân hàng", "Chứng khoán", "Bất động sản", "Doanh nghiệp")):
+def lay_tin_cafebiz(so_luong=8, chuyen_muc_loc=("Kinh doanh", "Tài chính ngân hàng", "Chứng khoán", "Bất động sản", "Doanh nghiệp", "Tiền tệ", "Lãi suất", "Công ty", "Cổ phiếu")):
     url = "https://cafebiz.vn/"
     print("  Đang quét CafeBiz (Trang chủ, lọc chuyên mục Kinh doanh)...")
     try:
@@ -440,9 +441,9 @@ TRẢ VỀ JSON THUẦN (không markdown):
 
 
 def lay_tin_cafef_cafebiz():
-    df_cafef = lay_tin_cafef(15)
+    df_cafef = lay_tin_cafef(8)
     time.sleep(1)
-    df_cafebiz = lay_tin_cafebiz(15)
+    df_cafebiz = lay_tin_cafebiz(8)
 
     df_cafef = tom_tat_voi_ai(df_cafef, "CafeF")
     time.sleep(3)
@@ -475,7 +476,7 @@ def lay_tin_mediastack():
         "categories": "business",
         "languages": "en",
         "countries": "us,gb",
-        "limit": 15,
+        "limit": 10,
         "sort": "published_desc",
     }
 
@@ -816,6 +817,30 @@ def gui_email(duong_dan_pdf, gio_hien_thi_footer):
 # MAIN
 # ======================================================================
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--build", action="store_true",
+        help="Chỉ lấy tin, tóm tắt AI, xuất PDF — KHÔNG gửi email. Lưu trạng thái để dùng với --send-email.",
+    )
+    parser.add_argument(
+        "--send-email", action="store_true",
+        help="Chỉ gửi email dựa trên PDF đã tạo từ lần chạy --build trước đó.",
+    )
+    args = parser.parse_args()
+
+    trang_thai_path = os.path.join(WORKDIR, "trang_thai.json")
+
+    # Chế độ 2: CHỈ gửi email (dùng PDF đã chuẩn bị từ --build)
+    if args.send_email:
+        if not os.path.exists(trang_thai_path):
+            sys.exit("❌ Không tìm thấy trang_thai.json — hãy chạy `python main.py --build` trước.")
+        with open(trang_thai_path, "r", encoding="utf-8") as f:
+            trang_thai = json.load(f)
+        gui_email(trang_thai["duong_dan_pdf"], trang_thai["gio_hien_thi_footer"])
+        print("\n🎉 ĐÃ GỬI EMAIL.")
+        return
+
+    # Chế độ 1 (--build) hoặc chạy đầy đủ như cũ (không truyền cờ gì)
     df_trong_nuoc = lay_tin_trong_nuoc()
     df_quoc_te = lay_tin_quoc_te()
     df_cafef, df_cafebiz = lay_tin_cafef_cafebiz()
@@ -825,9 +850,19 @@ def main():
         df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack
     )
 
-    gui_email(duong_dan_pdf, gio_hien_thi_footer)
+    # Đã bỏ bước lưu Google Drive: Service Account không có dung lượng lưu trữ riêng
+    # (lỗi storageQuotaExceeded) — PDF vẫn được gửi đầy đủ qua email.
 
-    print("\n🎉 HOÀN TẤT TOÀN BỘ QUY TRÌNH.")
+    if args.build:
+        with open(trang_thai_path, "w", encoding="utf-8") as f:
+            json.dump(
+                {"duong_dan_pdf": duong_dan_pdf, "gio_hien_thi_footer": gio_hien_thi_footer},
+                f, ensure_ascii=False,
+            )
+        print(f"\n✅ Đã lưu trạng thái vào {trang_thai_path}. Chạy `python main.py --send-email` để gửi email.")
+    else:
+        gui_email(duong_dan_pdf, gio_hien_thi_footer)
+        print("\n🎉 HOÀN TẤT TOÀN BỘ QUY TRÌNH.")
 
 
 if __name__ == "__main__":
