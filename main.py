@@ -816,53 +816,63 @@ def gui_email(duong_dan_pdf, gio_hien_thi_footer):
 # ======================================================================
 # MAIN
 # ======================================================================
+def doc_csv_an_toan(ten_file):
+    """Đọc lại 1 file CSV đã lưu ở Bước 1. Trả về DataFrame trống nếu file không tồn tại
+    (do nguồn đó hôm nay không có bài nào), và thay mọi giá trị trống/NaN bằng chuỗi rỗng
+    để không bị hiện chữ 'nan' trong PDF."""
+    duong_dan = os.path.join(WORKDIR, ten_file)
+    if not os.path.exists(duong_dan):
+        return pd.DataFrame()
+    df = pd.read_csv(duong_dan, sep=";", encoding="utf-8-sig")
+    return df.fillna("")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--build", action="store_true",
-        help="Chỉ lấy tin, tóm tắt AI, xuất PDF — KHÔNG gửi email. Lưu trạng thái để dùng với --send-email.",
+        help="Chỉ lấy tin và tóm tắt AI, lưu ra các file CSV — KHÔNG xuất PDF, KHÔNG gửi email.",
     )
     parser.add_argument(
         "--send-email", action="store_true",
-        help="Chỉ gửi email dựa trên PDF đã tạo từ lần chạy --build trước đó.",
+        help="Đọc lại CSV đã lưu từ --build, xuất PDF NGAY LÚC NÀY rồi gửi email ngay sau đó.",
     )
     args = parser.parse_args()
 
-    trang_thai_path = os.path.join(WORKDIR, "trang_thai.json")
-
-    # Chế độ 2: CHỈ gửi email (dùng PDF đã chuẩn bị từ --build)
+    # Chế độ 2: đọc lại 5 file CSV đã lưu ở Bước 1 -> xuất PDF (đúng lúc này) -> gửi email ngay
     if args.send_email:
-        if not os.path.exists(trang_thai_path):
-            sys.exit("❌ Không tìm thấy trang_thai.json — hãy chạy `python main.py --build` trước.")
-        with open(trang_thai_path, "r", encoding="utf-8") as f:
-            trang_thai = json.load(f)
-        gui_email(trang_thai["duong_dan_pdf"], trang_thai["gio_hien_thi_footer"])
-        print("\n🎉 ĐÃ GỬI EMAIL.")
+        df_trong_nuoc = doc_csv_an_toan("tin_trong_nuoc_rss_chuan.csv")
+        df_quoc_te = doc_csv_an_toan("tin_quoc_te_rss_chuan.csv")
+        df_cafef = doc_csv_an_toan("timeline_cafef_loc_tin.csv")
+        df_cafebiz = doc_csv_an_toan("cafebiz_tin_moi.csv")
+        df_mediastack = doc_csv_an_toan("mediastack_tin_quoc_te.csv")
+
+        duong_dan_pdf, gio_hien_thi_footer = xuat_bao_cao_pdf(
+            df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack
+        )
+        gui_email(duong_dan_pdf, gio_hien_thi_footer)
+        print("\n🎉 ĐÃ XUẤT PDF VÀ GỬI EMAIL.")
         return
 
-    # Chế độ 1 (--build) hoặc chạy đầy đủ như cũ (không truyền cờ gì)
+    # Chế độ 1 (--build) hoặc chạy đầy đủ như cũ (không truyền cờ gì):
+    # các hàm dưới đây tự lưu CSV ra đĩa như một phần xử lý của chúng.
     df_trong_nuoc = lay_tin_trong_nuoc()
     df_quoc_te = lay_tin_quoc_te()
     df_cafef, df_cafebiz = lay_tin_cafef_cafebiz()
     df_mediastack = lay_tin_mediastack()
 
-    duong_dan_pdf, gio_hien_thi_footer = xuat_bao_cao_pdf(
-        df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack
-    )
+    if args.build:
+        print("\n✅ Đã lấy tin và tóm tắt AI xong, dữ liệu đã lưu vào các file CSV. "
+              "Chạy `python main.py --send-email` để xuất PDF và gửi email.")
+        return
 
     # Đã bỏ bước lưu Google Drive: Service Account không có dung lượng lưu trữ riêng
     # (lỗi storageQuotaExceeded) — PDF vẫn được gửi đầy đủ qua email.
-
-    if args.build:
-        with open(trang_thai_path, "w", encoding="utf-8") as f:
-            json.dump(
-                {"duong_dan_pdf": duong_dan_pdf, "gio_hien_thi_footer": gio_hien_thi_footer},
-                f, ensure_ascii=False,
-            )
-        print(f"\n✅ Đã lưu trạng thái vào {trang_thai_path}. Chạy `python main.py --send-email` để gửi email.")
-    else:
-        gui_email(duong_dan_pdf, gio_hien_thi_footer)
-        print("\n🎉 HOÀN TẤT TOÀN BỘ QUY TRÌNH.")
+    duong_dan_pdf, gio_hien_thi_footer = xuat_bao_cao_pdf(
+        df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack
+    )
+    gui_email(duong_dan_pdf, gio_hien_thi_footer)
+    print("\n🎉 HOÀN TẤT TOÀN BỘ QUY TRÌNH.")
 
 
 if __name__ == "__main__":
