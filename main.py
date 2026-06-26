@@ -597,7 +597,7 @@ def xuat_bao_cao_pdf(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediast
     @page {
         margin-bottom: 2cm;
         @bottom-center {
-            content: "© Bản quyền thuộc YSVN";
+            content: "© Bản quyền thuộc về FTU-kudo";
             font-family: 'Times New Roman', serif;
             font-size: 8pt;
             color: #94a3b8;
@@ -787,14 +787,14 @@ def gui_email(duong_dan_pdf, gio_hien_thi_footer):
     print(f"\nĐang gửi email báo cáo đến {len(danh_sach_nhan)} người nhận...")
 
     msg = EmailMessage()
-    msg["Subject"] = f"[YSVN] Cập nhật Tin tức Thị trường - {gio_hien_thi_footer}"
+    msg["Subject"] = f"Cập nhật Tin tức Thị trường - {gio_hien_thi_footer}"
     msg["From"] = gmail_address
     msg["To"] = gmail_address  # gửi cho chính mình ở To, khách hàng nằm ở Bcc để bảo mật email của nhau
     msg["Bcc"] = ", ".join(danh_sach_nhan)
     msg.set_content(
         "Kính chào Quý khách,\n\n"
         "Đính kèm là Báo cáo Phân tích Tin tức Thị trường được tổng hợp tự động trong ngày hôm nay.\n\n"
-        "Trân trọng,\nChứng Khoán Yuanta Việt Nam - YSVN"
+        "Trân trọng,\nFTU-kudo."
     )
 
     mime_type, _ = mimetypes.guess_type(duong_dan_pdf)
