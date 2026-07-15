@@ -119,9 +119,9 @@ def goi_gemini(prompt_text, retries=3, wait_giay=20):
 def lay_tin_trong_nuoc():
     print("\n[1/5] Đang lấy tin trong nước (Google News RSS)...")
     nguon = {
-        "Tin Chính phủ & Doanh nghiệp": "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FuWnBHZ0pXVGlnQVAB?hl=vi&gl=VN&ceid=VN:vi",
         "Kinh tế Vĩ mô": "https://news.google.com/rss/search?q=(kinh+tế+OR+tài+chính+OR+ngân+hàng)+when:24h&hl=vi&gl=VN&ceid=VN:vi",
         "Tin Thời sự": "https://news.google.com/rss?hl=vi&gl=VN&ceid=VN:vi",
+        "Tin Cập nhật": "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FuWnBHZ0pXVGlnQVAB?hl=vi&gl=VN&ceid=VN:vi",
     }
 
     danh_sach_tin = []
@@ -634,11 +634,11 @@ def xuat_bao_cao_pdf(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediast
             link_goc = row.get("Link", "#")
 
             chuyen_muc = row.get("Chuyên mục", "")
-
-            if chuyen_muc == "Tin Chính phủ & Doanh nghiệp":
-                tag_html = f"<div style='background-color: #e0e7ff; color: #4f46e5; padding: 3px 6px; border-radius: 3px; font-size: 8pt; font-weight: bold; display: inline-block; margin-bottom: 4px;'>{chuyen_muc}</div><br>"
-            elif chuyen_muc == "Kinh tế Vĩ mô":
+          
+            if chuyen_muc == "Kinh tế Vĩ mô":
                 tag_html = f"<div style='background-color: #dcfce3; color: #16a34a; padding: 3px 6px; border-radius: 3px; font-size: 8pt; font-weight: bold; display: inline-block; margin-bottom: 4px;'>{chuyen_muc}</div><br>"
+            elif chuyen_muc == "Tin Cập nhật":
+                tag_html = f"<div style='background-color: #e0e7ff; color: #4f46e5; padding: 3px 6px; border-radius: 3px; font-size: 8pt; font-weight: bold; display: inline-block; margin-bottom: 4px;'>{chuyen_muc}</div><br>"
             elif chuyen_muc == "Tin Thời sự":
                 tag_html = f"<div style='background-color: #fee2e2; color: #ef4444; padding: 3px 6px; border-radius: 3px; font-size: 8pt; font-weight: bold; display: inline-block; margin-bottom: 4px;'>{chuyen_muc}</div><br>"
             else:
