@@ -39,6 +39,8 @@ from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 
+from archive import luu_ban_tin  # kho lưu trữ bản tin (trang GitHub Pages)
+
 
 # ======================================================================
 # 0. CẤU HÌNH CHUNG
@@ -60,6 +62,10 @@ HEADERS = {
         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
 }
+
+# Công tắc gửi email: đọc từ ENABLE_EMAIL (đặt trong .github/workflows/daily_news.yml).
+# Mặc định TẮT. Muốn gửi lại: đặt ENABLE_EMAIL: "true" trong workflow.
+EMAIL_BAT = os.environ.get("ENABLE_EMAIL", "false").strip().lower() in ("1", "true", "yes", "on")
 
 
 def goi_gemini(prompt_text, retries=3, wait_giay=20):
@@ -771,6 +777,12 @@ def upload_len_drive(duong_dan_pdf):
 # 7. GỬI EMAIL KÈM PDF CHO KHÁCH HÀNG (Gmail SMTP)
 # ======================================================================
 def gui_email(duong_dan_pdf, gio_hien_thi_footer):
+    # ===== CÔNG TẮC: gửi email đang TẠM TẮT =====
+    # Toàn bộ code gửi email bên dưới được giữ nguyên để bật lại bất cứ lúc nào.
+    if not EMAIL_BAT:
+        print("\n⏸️ Gửi email đang TẠM TẮT (ENABLE_EMAIL chưa đặt là true) -> bỏ qua bước này.")
+        return
+
     gmail_address = os.environ.get("GMAIL_ADDRESS")
     gmail_app_password = os.environ.get("GMAIL_APP_PASSWORD")
     recipient_emails = os.environ.get("RECIPIENT_EMAILS", "")
@@ -827,35 +839,53 @@ def doc_csv_an_toan(ten_file):
     return df.fillna("")
 
 
+def dang_ban_tin(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack):
+    """Xuất PDF -> lưu vào kho lưu trữ (trang GitHub Pages) -> gửi email (chỉ khi đang bật)."""
+    duong_dan_pdf, gio_hien_thi_footer = xuat_bao_cao_pdf(
+        df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack
+    )
+
+    loi_kho = None
+    try:
+        luu_ban_tin(
+            df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack,
+            duong_dan_pdf=duong_dan_pdf, gio_hien_thi=gio_hien_thi_footer,
+        )
+    except Exception as e:
+        loi_kho = e
+        print(f"  ❌ Lỗi khi lưu kho lưu trữ: {e}")
+
+    gui_email(duong_dan_pdf, gio_hien_thi_footer)   # tự bỏ qua nếu ENABLE_EMAIL != true
+
+    if loi_kho is not None:
+        raise loi_kho   # để GitHub Actions báo đỏ, bạn biết ngay kho lưu trữ hôm nay bị lỗi
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--build", action="store_true",
-        help="Chỉ lấy tin và tóm tắt AI, lưu ra các file CSV — KHÔNG xuất PDF, KHÔNG gửi email.",
+        help="Chỉ lấy tin và tóm tắt AI, lưu ra các file CSV — KHÔNG xuất PDF, KHÔNG lưu kho, KHÔNG gửi email.",
     )
     parser.add_argument(
-        "--send-email", action="store_true",
-        help="Đọc lại CSV đã lưu từ --build, xuất PDF NGAY LÚC NÀY rồi gửi email ngay sau đó.",
+        "--publish", "--send-email", dest="publish", action="store_true",
+        help="Đọc lại CSV từ --build, xuất PDF, lưu vào kho lưu trữ web, rồi gửi email (nếu đang bật).",
     )
     args = parser.parse_args()
 
-    # Chế độ 2: đọc lại 5 file CSV đã lưu ở Bước 1 -> xuất PDF (đúng lúc này) -> gửi email ngay
-    if args.send_email:
-        df_trong_nuoc = doc_csv_an_toan("tin_trong_nuoc_rss_chuan.csv")
-        df_quoc_te = doc_csv_an_toan("tin_quoc_te_rss_chuan.csv")
-        df_cafef = doc_csv_an_toan("timeline_cafef_loc_tin.csv")
-        df_cafebiz = doc_csv_an_toan("cafebiz_tin_moi.csv")
-        df_mediastack = doc_csv_an_toan("mediastack_tin_quoc_te.csv")
-
-        duong_dan_pdf, gio_hien_thi_footer = xuat_bao_cao_pdf(
-            df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack
+    # Chế độ 2: đọc lại 5 file CSV đã lưu ở Bước 1 -> xuất PDF -> lưu kho -> (gửi email)
+    if args.publish:
+        dang_ban_tin(
+            doc_csv_an_toan("tin_trong_nuoc_rss_chuan.csv"),
+            doc_csv_an_toan("timeline_cafef_loc_tin.csv"),
+            doc_csv_an_toan("cafebiz_tin_moi.csv"),
+            doc_csv_an_toan("tin_quoc_te_rss_chuan.csv"),
+            doc_csv_an_toan("mediastack_tin_quoc_te.csv"),
         )
-        gui_email(duong_dan_pdf, gio_hien_thi_footer)
-        print("\n🎉 ĐÃ XUẤT PDF VÀ GỬI EMAIL.")
+        print("\n🎉 ĐÃ XUẤT PDF VÀ LƯU KHO LƯU TRỮ.")
         return
 
     # Chế độ 1 (--build) hoặc chạy đầy đủ như cũ (không truyền cờ gì):
-    # các hàm dưới đây tự lưu CSV ra đĩa như một phần xử lý của chúng.
     df_trong_nuoc = lay_tin_trong_nuoc()
     df_quoc_te = lay_tin_quoc_te()
     df_cafef, df_cafebiz = lay_tin_cafef_cafebiz()
@@ -863,15 +893,10 @@ def main():
 
     if args.build:
         print("\n✅ Đã lấy tin và tóm tắt AI xong, dữ liệu đã lưu vào các file CSV. "
-              "Chạy `python main.py --send-email` để xuất PDF và gửi email.")
+              "Chạy `python main.py --publish` để xuất PDF và lưu kho lưu trữ.")
         return
 
-    # Đã bỏ bước lưu Google Drive: Service Account không có dung lượng lưu trữ riêng
-    # (lỗi storageQuotaExceeded) — PDF vẫn được gửi đầy đủ qua email.
-    duong_dan_pdf, gio_hien_thi_footer = xuat_bao_cao_pdf(
-        df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack
-    )
-    gui_email(duong_dan_pdf, gio_hien_thi_footer)
+    dang_ban_tin(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack)
     print("\n🎉 HOÀN TẤT TOÀN BỘ QUY TRÌNH.")
 
 
