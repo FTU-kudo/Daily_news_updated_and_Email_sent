@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Báo cáo phân tích tin tức thị trường</title>
+<style>
+  :root {
+    --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --muted: #64748b; --line: #cbd5e1;
+    --navy: #1e3a8a; --mark: #fde68a; --link: #1d4ed8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --line: #334155;
+            --navy: #3b5bdb; --mark: #854d0e; --link: #93c5fd; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font-family: "Times New Roman", "Noto Serif", Georgia, serif; font-size: 16px; line-height: 1.5; }
+  a { color: var(--link); }
+  header { background: var(--navy); color: #fff; padding: 14px 20px; position: sticky; top: 0; z-index: 10; }
+  header h1 { margin: 0 0 10px; font-size: 19px; letter-spacing: .3px; }
+  header h1 small { font-weight: normal; opacity: .8; margin-left: 8px; }
+  form#sf { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  form#sf input[type=search] { flex: 1 1 260px; min-width: 0; padding: 9px 12px; font-size: 16px; border: 0; border-radius: 6px; }
+  form#sf button { padding: 9px 16px; font-size: 15px; border: 0; border-radius: 6px; cursor: pointer; background: #fbbf24; color: #1e293b; font-weight: bold; }
+  form#sf button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.5); font-weight: normal; }
+  .opts { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 8px; font-size: 14px; }
+  .opts label { display: inline-flex; gap: 6px; align-items: center; }
+  .opts select, .opts input[type=date] { padding: 4px 6px; border-radius: 4px; border: 0; font-size: 14px; }
+  .layout { display: flex; gap: 20px; max-width: 1280px; margin: 0 auto; padding: 18px 16px 40px; align-items: flex-start; }
+  aside { flex: 0 0 210px; position: sticky; top: 118px; max-height: calc(100vh - 140px); overflow: auto;
+          background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 14px; }
+  aside h2 { margin: 0 0 6px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  aside details { margin-bottom: 4px; }
+  aside summary { cursor: pointer; font-weight: bold; padding: 3px 0; }
+  aside a.day { display: flex; justify-content: space-between; padding: 3px 8px; border-radius: 4px; text-decoration: none; color: var(--text); }
+  aside a.day:hover { background: var(--bg); }
+  aside a.day.active { background: var(--navy); color: #fff; }
+  aside a.day span { color: var(--muted); font-size: 12px; }
+  aside a.day.active span { color: #cbd5e1; }
+  main { flex: 1 1 auto; min-width: 0; }
+  .daybar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+  .daybar h2 { margin: 0; font-size: 22px; flex: 1 1 auto; }
+  .daybar .meta { color: var(--muted); font-size: 14px; width: 100%; }
+  .btn { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card);
+         color: var(--text); text-decoration: none; font-size: 14px; cursor: pointer; }
+  .btn[aria-disabled=true] { opacity: .4; pointer-events: none; }
+  .group { text-align: center; font-size: 19px; font-weight: bold; margin: 28px 0 10px; padding-bottom: 6px; border-bottom: 2px dashed var(--line); }
+  .sec { background: var(--card); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 18px; overflow: hidden; }
+  .sec > h3 { margin: 0; padding: 9px 14px; color: #fff; font-size: 16px; }
+  .item { display: grid; grid-template-columns: 112px 1fr; gap: 6px 14px; padding: 11px 14px; border-top: 1px solid var(--line); }
+  .item:first-of-type { border-top: 0; }
+  .item .t { font-weight: bold; font-size: 14px; color: var(--muted); }
+  .item .ti { font-weight: bold; }
+  .item .ti a { color: inherit; text-decoration: none; }
+  .item .ti a:hover { text-decoration: underline; }
+  .item .src { font-style: italic; font-weight: bold; }
+  .item .sm { margin-top: 3px; text-align: justify; }
+  .tag { display: inline-block; font-size: 12px; font-weight: bold; padding: 1px 7px; border-radius: 3px; background: #e0e7ff; color: #4338ca; margin-right: 6px; }
+  mark { background: var(--mark); color: inherit; padding: 0 1px; border-radius: 2px; }
+  .res-day { margin: 22px 0 6px; font-weight: bold; font-size: 17px; }
+  .res-day a { text-decoration: none; }
+  .res-sec { font-size: 12px; color: var(--muted); font-weight: bold; }
+  .state { text-align: center; color: var(--muted); padding: 50px 10px; }
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 18px; border-top: 1px solid var(--line); }
+  @media (max-width: 800px) {
+    .layout { flex-direction: column; }
+    aside { position: static; max-height: 240px; width: 100%; flex: none; }
+    .item { grid-template-columns: 1fr; }
+    header { position: static; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>BÁO CÁO PHÂN TÍCH TIN TỨC THỊ TRƯỜNG <small>Cập nhật hằng ngày</small></h1>
+  <form id="sf" autocomplete="off">
+    <input type="search" id="q" placeholder="Tìm trong toàn bộ lịch sử: lãi suất, MSFT, &quot;tỷ giá&quot; | VN-Index ..." aria-label="Từ khóa tìm kiếm">
+    <button type="submit">Tìm kiếm</button>
+    <button type="button" class="ghost" id="clear">Xóa</button>
+  </form>
+  <div class="opts">
+    <label>Nguồn
+      <select id="sec">
+        <option value="">Tất cả</option>
+        <option value="trong-nuoc">Điểm tin vĩ mô &amp; doanh nghiệp</option>
+        <option value="cafef">CafeF</option>
+        <option value="cafebiz">CafeBiz</option>
+        <option value="quoc-te">Điểm tin vĩ mô toàn cầu</option>
+        <option value="mediastack">Mediastack</option>
+      </select>
+    </label>
+    <label>Từ ngày <input type="date" id="from"></label>
+    <label>Đến ngày <input type="date" id="to"></label>
+    <label><input type="checkbox" id="accent"> Phân biệt dấu</label>
+  </div>
+</header>
+
+<div class="layout">
+  <aside id="side"><h2>Lịch sử bản tin</h2><div id="sidelist">Đang tải…</div></aside>
+  <main id="main"><div class="state">Đang tải dữ liệu…</div></main>
+</div>
+<footer>© Bản quyền thuộc về FTU-kudo</footer>
+<noscript><p class="state">Trang này cần bật JavaScript để hiển thị và tìm kiếm bản tin.</p></noscript>
+
+<script>
+"use strict";
+
+/* <pure> — các hàm thuần (không đụng DOM), được kiểm thử riêng bằng Node */
+const THU = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                  .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function safeUrl(u) {
+  return /^https?:\/\//i.test(u || "") ? u : "";
+}
+
+function fmtDate(iso) {            // 2026-10-03 -> 03/10/2026
+  const [y, m, d] = iso.split("-");
+  return d + "/" + m + "/" + y;
+}
+
+function thu(iso) {                // 2026-10-03 -> "Thứ bảy"
+  const [y, m, d] = iso.split("-").map(Number);
+  return THU[new Date(y, m - 1, d).getDay()];
+}
+
+/* Chuẩn hóa chuỗi để so khớp. accents=false: bỏ dấu tiếng Việt (lai suat == lãi suất).
+   Trả về cả bảng ánh xạ vị trí để tô sáng đúng chỗ trên văn bản gốc. */
+function fold(s, accents) {
+  let out = "";
+  const map = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    let r;
+    if (accents) r = c.toLowerCase();
+    else if (c === "đ" || c === "Đ") r = "d";
+    else r = c.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    for (let j = 0; j < r.length; j++) { out += r[j]; map.push(i); }
+  }
+  return { text: out, map: map };
+}
+
+/* Cú pháp: a b  = có cả a lẫn b | "a b" = đúng cụm từ | a | b = có a hoặc có b */
+function parseQuery(q) {
+  return q.split("|").map(function (alt) {
+    const terms = [];
+    const re = /"([^"]+)"|(\S+)/g;
+    let m;
+    while ((m = re.exec(alt))) {
+      const t = (m[1] || m[2] || "").trim();
+      if (t) terms.push(t);
+    }
+    return terms;
+  }).filter(function (t) { return t.length; });
+}
+
+function foldQuery(alts, accents) {
+  return alts.map(function (terms) { return terms.map(function (t) { return fold(t, accents).text; }); });
+}
+
+function itemHay(it, accents) {
+  const k = accents ? "_h1" : "_h0";
+  if (it[k] === undefined) {
+    it[k] = fold([it.title, it.summary, it.category, it.source].join(" \n "), accents).text;
+  }
+  return it[k];
+}
+
+function itemMatches(it, foldedAlts, accents) {
+  const hay = itemHay(it, accents);
+  return foldedAlts.some(function (terms) {
+    return terms.every(function (t) { return hay.indexOf(t) !== -1; });
+  });
+}
+
+function highlight(text, terms, accents) {
+  if (!text) return "";
+  if (!terms.length) return esc(text);
+  const f = fold(text, accents);
+  const ranges = [];
+  terms.forEach(function (t) {
+    if (!t) return;
+    let p = 0;
+    while ((p = f.text.indexOf(t, p)) !== -1) {
+      ranges.push([f.map[p], f.map[p + t.length - 1] + 1]);
+      p += t.length;
+    }
+  });
+  if (!ranges.length) return esc(text);
+  ranges.sort(function (a, b) { return a[0] - b[0]; });
+  const merged = [ranges[0].slice()];
+  for (let i = 1; i < ranges.length; i++) {
+    const last = merged[merged.length - 1];
+    if (ranges[i][0] <= last[1] || /^\s*$/.test(text.slice(last[1], ranges[i][0]))) last[1] = Math.max(last[1], ranges[i][1]);
+    else merged.push(ranges[i].slice());
+  }
+  let out = "", pos = 0;
+  merged.forEach(function (r) {
+    out += esc(text.slice(pos, r[0])) + "<mark>" + esc(text.slice(r[0], r[1])) + "</mark>";
+    pos = r[1];
+  });
+  return out + esc(text.slice(pos));
+}
+/* </pure> */
+
+const COLORS = { "trong-nuoc": "#1e3a8a", "cafef": "#991b1b", "cafebiz": "#c2410c", "quoc-te": "#0f766e", "mediastack": "#4c1d95" };
+const $ = function (id) { return document.getElementById(id); };
+const state = { days: [], info: {}, cache: {}, shown: 150 };
+
+async function fetchJson(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(url + " -> HTTP " + r.status);
+  return r.json();
+}
+
+async function loadDay(date) {
+  if (state.cache[date]) return state.cache[date];
+  const d = await fetchJson("data/" + date + ".json");
+  (d.sections || []).forEach(function (s) {
+    (s.items || []).forEach(function (it) {
+      ["time", "category", "title", "source", "summary", "link"].forEach(function (k) {
+        it[k] = (it[k] || "").normalize("NFC");   // đồng nhất dạng Unicode để tìm kiếm không bị sót
+      });
+    });
+  });
+  state.cache[date] = d;
+  return d;
+}
+
+async function loadMany(dates, onProgress) {
+  let next = 0, done = 0;
+  async function worker() {
+    while (next < dates.length) {
+      const d = dates[next++];
+      try { await loadDay(d); } catch (e) { console.warn("Bỏ qua", d, e); }
+      done++;
+      onProgress(done, dates.length);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(8, dates.length) }, worker));
+}
+
+function getParams() { return new URLSearchParams(location.hash.replace(/^#/, "")); }
+function go(params) {              // đổi địa chỉ; nếu địa chỉ không đổi thì vẽ lại ngay
+  const before = location.hash.replace(/^#/, ""), after = params.toString();
+  if (before === after) route(); else location.hash = after;
+}
+
+/* ---------- Thanh bên: danh sách ngày theo tháng ---------- */
+function renderSide(active) {
+  const byMonth = {};
+  state.days.forEach(function (d) { (byMonth[d.slice(0, 7)] = byMonth[d.slice(0, 7)] || []).push(d); });
+  const months = Object.keys(byMonth).sort().reverse();
+  const activeMonth = active ? active.slice(0, 7) : months[0];
+  $("sidelist").innerHTML = months.map(function (m, i) {
+    const open = (m === activeMonth || (!activeMonth && i === 0)) ? " open" : "";
+    const rows = byMonth[m].map(function (d) {
+      const cls = d === active ? "day active" : "day";
+      return '<a class="' + cls + '" href="#d=' + d + '">' + fmtDate(d).slice(0, 5) +
+             " · " + thu(d).replace("Thứ ", "T").replace("Chủ nhật", "CN") +
+             "<span>" + (state.info[d] ? state.info[d].count : "") + "</span></a>";
+    }).join("");
+    return "<details" + open + "><summary>Tháng " + m.slice(5) + "/" + m.slice(0, 4) +
+           " (" + byMonth[m].length + ")</summary>" + rows + "</details>";
+  }).join("");
+}
+
+/* ---------- Giao diện 1 tin ---------- */
+function itemHtml(it, hl) {
+  const terms = hl ? hl.terms : [], acc = hl ? hl.accents : false;
+  const url = safeUrl(it.link);
+  const title = highlight(it.title, terms, acc);
+  const titleHtml = url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + title + "</a>" : title;
+  const src = it.source ? ' — <span class="src">' + highlight(it.source, terms, acc) + "</span>" : "";
+  const tag = it.category ? '<span class="tag">' + highlight(it.category, terms, acc) + "</span>" : "";
+  return '<div class="item"><div class="t">' + esc(it.time) + '</div><div><div class="ti">' + tag + titleHtml + src +
+         '</div><div class="sm">' + highlight(it.summary, terms, acc) + "</div></div></div>";
+}
+
+/* ---------- Xem 1 ngày ---------- */
+async function renderDay(date) {
+  const main = $("main");
+  const idx = state.days.indexOf(date);
+  if (idx === -1) {
+    main.innerHTML = '<div class="state">Không có bản tin cho ngày <b>' + esc(date) + "</b>.<br>Hãy chọn một ngày trong danh sách bên trái.</div>";
+    renderSide(null);
+    return;
+  }
+  main.innerHTML = '<div class="state">Đang tải bản tin ngày ' + fmtDate(date) + "…</div>";
+  let data;
+  try { data = await loadDay(date); }
+  catch (e) { main.innerHTML = '<div class="state">Không tải được dữ liệu ngày ' + fmtDate(date) + ".</div>"; return; }
+
+  const older = state.days[idx + 1], newer = state.days[idx - 1];
+  const nav = function (d, label) {
+    return d ? '<a class="btn" href="#d=' + d + '">' + label + "</a>" : '<a class="btn" aria-disabled="true">' + label + "</a>";
+  };
+  let html = '<div class="daybar"><h2>' + thu(date) + ", " + fmtDate(date) + "</h2>" +
+             nav(older, "◀ Ngày trước") + nav(newer, "Ngày sau ▶") +
+             (data.pdf ? '<a class="btn" href="' + esc(data.pdf) + '" target="_blank" rel="noopener">Tải PDF</a>' : "") +
+             '<div class="meta">' + (data.generated_at ? "Tổng hợp lúc " + esc(data.generated_at) + " · " : "") +
+             (state.info[date] ? state.info[date].count : "") + " tin</div></div>";
+  let group = "";
+  (data.sections || []).forEach(function (s) {
+    if (s.group !== group) { group = s.group; html += '<div class="group">' + esc(group.toUpperCase()) + "</div>"; }
+    html += '<section class="sec"><h3 style="background:' + (COLORS[s.id] || "#334155") + '">' + esc(s.title) + "</h3>" +
+            s.items.map(function (it) { return itemHtml(it, null); }).join("") + "</section>";
+  });
+  main.innerHTML = html;
+  renderSide(date);
+  window.scrollTo(0, 0);
+}
+
+/* ---------- Tìm kiếm toàn bộ lịch sử ---------- */
+async function renderSearch(p, keepScroll) {
+  const main = $("main");
+  const q = (p.get("q") || "").trim();
+  const accents = p.get("a") === "1";
+  const secId = p.get("s") || "";
+  const from = p.get("from") || "", to = p.get("to") || "";
+  const alts = parseQuery(q);
+  if (!alts.length) { go(new URLSearchParams()); return; }
+
+  const dates = state.days.filter(function (d) { return (!from || d >= from) && (!to || d <= to); });
+  const token = (state.token = Math.random());
+  if (dates.some(function (d) { return !state.cache[d]; })) {
+    main.innerHTML = '<div class="state" id="prog">Đang tải dữ liệu lịch sử…</div>';
+  }
+  await loadMany(dates, function (n, total) {
+    const el = $("prog");
+    if (el && state.token === token) el.textContent = "Đang tải dữ liệu lịch sử… " + n + "/" + total;
+  });
+  if (state.token !== token) return;     // người dùng đã chuyển sang tìm kiếm khác
+
+  const folded = foldQuery(alts, accents);
+  const terms = [].concat.apply([], folded);
+  const results = [];   // [{date, section, item}]
+  let days = 0;
+  dates.forEach(function (d) {
+    const data = state.cache[d];
+    if (!data) return;
+    let hit = false;
+    data.sections.forEach(function (s) {
+      if (secId && s.id !== secId) return;
+      s.items.forEach(function (it) {
+        if (itemMatches(it, folded, accents)) { results.push({ date: d, section: s, item: it }); hit = true; }
+      });
+    });
+    if (hit) days++;
+  });
+
+  let html = '<div class="daybar"><h2>Kết quả cho “' + esc(q) + "”</h2>" +
+             '<div class="meta">' + results.length + " tin trong " + days + " / " + dates.length + " bản tin" +
+             (dates.length ? " (" + fmtDate(dates[dates.length - 1]) + " → " + fmtDate(dates[0]) + ")" : "") + "</div></div>";
+  if (!results.length) {
+    html += '<div class="state">Không tìm thấy tin nào khớp. Thử bỏ bớt từ khóa, hoặc bỏ tick “Phân biệt dấu”.</div>';
+  } else {
+    const shown = results.slice(0, state.shown);
+    let cur = "";
+    shown.forEach(function (r) {
+      if (r.date !== cur) {
+        cur = r.date;
+        html += '<div class="res-day"><a href="#d=' + r.date + '">' + thu(r.date) + ", " + fmtDate(r.date) + " ›</a></div>";
+      }
+      html += '<div class="res-sec">' + esc(r.section.title) + "</div>" + itemHtml(r.item, { terms: terms, accents: accents });
+    });
+    if (results.length > shown.length) {
+      html += '<p class="state"><a class="btn" id="more">Hiện thêm (' + (results.length - shown.length) + " tin nữa)</a></p>";
+    }
+  }
+  main.innerHTML = html;
+  const more = $("more");
+  if (more) more.onclick = function () { state.shown += 150; renderSearch(p, true); };
+  renderSide(null);
+  if (!keepScroll) window.scrollTo(0, 0);
+}
+
+/* ---------- Điều hướng ---------- */
+function route() {
+  const p = getParams();
+  $("q").value = p.get("q") || "";
+  $("sec").value = p.get("s") || "";
+  $("from").value = p.get("from") || "";
+  $("to").value = p.get("to") || "";
+  $("accent").checked = p.get("a") === "1";
+  if (!state.days.length) return;
+  if (p.get("q")) renderSearch(p);
+  else renderDay(p.get("d") || state.days[0]);
+}
+
+$("sf").addEventListener("submit", function (e) {
+  e.preventDefault();
+  const q = $("q").value.trim();
+  if (!q) { go(new URLSearchParams()); return; }
+  state.shown = 150;
+  const p = new URLSearchParams({ q: q });
+  if ($("sec").value) p.set("s", $("sec").value);
+  if ($("from").value) p.set("from", $("from").value);
+  if ($("to").value) p.set("to", $("to").value);
+  if ($("accent").checked) p.set("a", "1");
+  go(p);
+});
+$("clear").addEventListener("click", function () { $("q").value = ""; go(new URLSearchParams()); });
+window.addEventListener("hashchange", route);
+
+async function init() {
+  try {
+    const idx = await fetchJson("data/index.json", { cache: "no-cache" });
+    (idx.days || []).forEach(function (d) { state.info[d.date] = d; });
+    state.days = Object.keys(state.info).sort().reverse();
+  } catch (e) { state.days = []; }
+  if (!state.days.length) {
+    $("sidelist").textContent = "Chưa có bản tin.";
+    $("main").innerHTML = '<div class="state">Chưa có bản tin nào trong kho lưu trữ.<br>Bản tin đầu tiên sẽ xuất hiện sau lần chạy tự động kế tiếp.</div>';
+    return;
+  }
+  $("from").min = $("to").min = state.days[state.days.length - 1];
+  $("from").max = $("to").max = state.days[0];
+  renderSide(null);
+  route();
+}
+init();
+</script>
+</body>
+</html>
