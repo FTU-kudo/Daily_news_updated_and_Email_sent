@@ -1,12 +1,25 @@
 name: Bao cao tin tuc thi truong hang ngay
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch: {}  # kich hoat qua nut "Run workflow" hoac API (cron-job.org luc 7h50 sang)
+
+# Chi cho phep 1 luot chay tai mot thoi diem (tranh 2 luot cung ghi vao kho luu tru)
+concurrency:
+  group: daily-news
+  cancel-in-progress: false
+
+env:
+  # ===== CONG TAC GUI EMAIL =====
+  # "false" = TAM TAT (hien tai).  Muon gui email lai: doi thanh "true" roi Commit.
+  # Khi bat lai, buoc "Cho den 8h00" ben duoi tu dong chay tro lai.
+  ENABLE_EMAIL: "false"
 
 jobs:
-  build-and-send:
+  build-and-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write   # de luu ban tin vao kho (docs/data, docs/pdf)
 
     steps:
       - name: Checkout code
@@ -31,13 +44,14 @@ jobs:
       - name: Cai dat thu vien Python
         run: pip install -r requirements.txt
 
-      - name: Buoc 1 - Lay tin, tom tat AI, xuat PDF (khong gui email)
+      - name: Buoc 1 - Lay tin, tom tat AI (chua xuat PDF)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MEDIA_STACK_API_KEY: ${{ secrets.MEDIA_STACK_API_KEY }}
         run: python -u main.py --build
 
-      - name: Buoc 2 - Cho den dung 8h00 sang VN (01:00 UTC)
+      - name: Buoc 2 - Cho den dung 8h00 sang VN (01:00 UTC) - chi khi dang bat email
+        if: env.ENABLE_EMAIL == 'true'
         run: |
           python3 -c "
           import datetime, time
@@ -51,13 +65,27 @@ jobs:
               print('Da qua 8h00 VN (qua trinh chuan bi mat nhieu thoi gian hon du kien) -> gui email ngay.')
           "
 
-      - name: Buoc 3 - Gui email luc 8h00 sang VN
+      - name: Buoc 3 - Xuat PDF, luu kho luu tru, gui email (neu dang bat)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
-        run: python -u main.py --send-email
+        run: python -u main.py --publish
+
+      - name: Luu ban tin vao kho (commit docs/data + docs/pdf)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p docs/data docs/pdf
+          git add -f docs/data docs/pdf
+          if git diff --cached --quiet; then
+            echo "Khong co thay doi nao de luu."
+          else
+            git commit -m "Cap nhat ban tin $(TZ=Asia/Ho_Chi_Minh date +%Y-%m-%d)"
+            git pull --rebase origin ${{ github.ref_name }}
+            git push origin HEAD:${{ github.ref_name }}
+          fi
 
       - name: Luu PDF lam Artifact (ban sao du phong, khong bat buoc)
         if: always()
@@ -66,3 +94,31 @@ jobs:
           name: bao-cao-tin-tuc
           path: "*.pdf"
           retention-days: 7
+
+  deploy-site:
+    needs: build-and-publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout (ban moi nhat, da gom ban tin vua luu)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Cau hinh Pages
+        uses: actions/configure-pages@v5
+
+      - name: Dong goi thu muc docs
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs
+
+      - name: Trien khai len GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
