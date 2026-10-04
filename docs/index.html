@@ -90,9 +90,9 @@
         <option value="mediastack">Mediastack</option>
       </select>
     </label>
-    <label>Từ ngày <input type="date" id="from"></label>
-    <label>Đến ngày <input type="date" id="to"></label>
-    <label><input type="checkbox" id="accent"> Phân biệt dấu</label>
+    <label title="Chỉ áp dụng khi tìm từ khóa">Từ ngày <input type="date" id="from"></label>
+    <label title="Chỉ áp dụng khi tìm từ khóa">Đến ngày <input type="date" id="to"></label>
+    <label title="Chỉ áp dụng khi tìm từ khóa"><input type="checkbox" id="accent"> Phân biệt dấu</label>
   </div>
 </header>
 
@@ -209,7 +209,7 @@ function highlight(text, terms, accents) {
 
 const COLORS = { "trong-nuoc": "#1e3a8a", "cafef": "#991b1b", "cafebiz": "#c2410c", "quoc-te": "#0f766e", "mediastack": "#4c1d95" };
 const $ = function (id) { return document.getElementById(id); };
-const state = { days: [], info: {}, cache: {}, shown: 150 };
+const state = { days: [], info: {}, cache: {}, shown: 150, sec: "" };
 
 async function fetchJson(url, opts) {
   const r = await fetch(url, opts);
@@ -245,6 +245,8 @@ async function loadMany(dates, onProgress) {
 }
 
 function getParams() { return new URLSearchParams(location.hash.replace(/^#/, "")); }
+/* Địa chỉ xem 1 ngày; giữ nguyên bộ lọc "Nguồn" đang chọn khi chuyển ngày */
+function dayHref(d) { return "#d=" + d + (state.sec ? "&s=" + encodeURIComponent(state.sec) : ""); }
 function go(params) {              // đổi địa chỉ; nếu địa chỉ không đổi thì vẽ lại ngay
   const before = location.hash.replace(/^#/, ""), after = params.toString();
   if (before === after) route(); else location.hash = after;
@@ -260,7 +262,7 @@ function renderSide(active) {
     const open = (m === activeMonth || (!activeMonth && i === 0)) ? " open" : "";
     const rows = byMonth[m].map(function (d) {
       const cls = d === active ? "day active" : "day";
-      return '<a class="' + cls + '" href="#d=' + d + '">' + fmtDate(d).slice(0, 5) +
+      return '<a class="' + cls + '" href="' + dayHref(d) + '">' + fmtDate(d).slice(0, 5) +
              " · " + thu(d).replace("Thứ ", "T").replace("Chủ nhật", "CN") +
              "<span>" + (state.info[d] ? state.info[d].count : "") + "</span></a>";
     }).join("");
@@ -297,15 +299,23 @@ async function renderDay(date) {
 
   const older = state.days[idx + 1], newer = state.days[idx - 1];
   const nav = function (d, label) {
-    return d ? '<a class="btn" href="#d=' + d + '">' + label + "</a>" : '<a class="btn" aria-disabled="true">' + label + "</a>";
+    return d ? '<a class="btn" href="' + dayHref(d) + '">' + label + "</a>" : '<a class="btn" aria-disabled="true">' + label + "</a>";
   };
+  const secs = (data.sections || []).filter(function (s) { return !state.sec || s.id === state.sec; });
+  const shownCount = secs.reduce(function (n, s) { return n + s.items.length; }, 0);
+  const totalCount = (data.sections || []).reduce(function (n, s) { return n + s.items.length; }, 0);
+  const secName = state.sec ? (($("sec").selectedOptions[0] || {}).textContent || state.sec) : "";
   let html = '<div class="daybar"><h2>' + thu(date) + ", " + fmtDate(date) + "</h2>" +
              nav(older, "◀ Ngày trước") + nav(newer, "Ngày sau ▶") +
              (data.pdf ? '<a class="btn" href="' + esc(data.pdf) + '" target="_blank" rel="noopener">Tải PDF</a>' : "") +
              '<div class="meta">' + (data.generated_at ? "Tổng hợp lúc " + esc(data.generated_at) + " · " : "") +
-             (state.info[date] ? state.info[date].count : "") + " tin</div></div>";
+             (state.sec ? shownCount + " tin thuộc nguồn “" + esc(secName) + "” (trên tổng " + totalCount + " tin của ngày)" : totalCount + " tin") +
+             "</div></div>";
+  if (state.sec && !secs.length) {
+    html += '<div class="state">Ngày này không có tin thuộc nguồn “' + esc(secName) + "”.<br>Chọn “Tất cả” hoặc chuyển sang ngày khác.</div>";
+  }
   let group = "";
-  (data.sections || []).forEach(function (s) {
+  secs.forEach(function (s) {
     if (s.group !== group) { group = s.group; html += '<div class="group">' + esc(group.toUpperCase()) + "</div>"; }
     html += '<section class="sec"><h3 style="background:' + (COLORS[s.id] || "#334155") + '">' + esc(s.title) + "</h3>" +
             s.items.map(function (it) { return itemHtml(it, null); }).join("") + "</section>";
@@ -364,7 +374,7 @@ async function renderSearch(p, keepScroll) {
     shown.forEach(function (r) {
       if (r.date !== cur) {
         cur = r.date;
-        html += '<div class="res-day"><a href="#d=' + r.date + '">' + thu(r.date) + ", " + fmtDate(r.date) + " ›</a></div>";
+        html += '<div class="res-day"><a href="' + dayHref(r.date) + '">' + thu(r.date) + ", " + fmtDate(r.date) + " ›</a></div>";
       }
       html += '<div class="res-sec">' + esc(r.section.title) + "</div>" + itemHtml(r.item, { terms: terms, accents: accents });
     });
@@ -382,6 +392,7 @@ async function renderSearch(p, keepScroll) {
 /* ---------- Điều hướng ---------- */
 function route() {
   const p = getParams();
+  state.sec = p.get("s") || "";
   $("q").value = p.get("q") || "";
   $("sec").value = p.get("s") || "";
   $("from").value = p.get("from") || "";
@@ -395,7 +406,14 @@ function route() {
 $("sf").addEventListener("submit", function (e) {
   e.preventDefault();
   const q = $("q").value.trim();
-  if (!q) { go(new URLSearchParams()); return; }
+  if (!q) {                                  // không có từ khóa: lọc nguồn ngay trên ngày đang xem
+    const p0 = new URLSearchParams();
+    const cur = getParams().get("d");
+    if (cur) p0.set("d", cur);
+    if ($("sec").value) p0.set("s", $("sec").value);
+    go(p0);
+    return;
+  }
   state.shown = 150;
   const p = new URLSearchParams({ q: q });
   if ($("sec").value) p.set("s", $("sec").value);
@@ -404,7 +422,16 @@ $("sf").addEventListener("submit", function (e) {
   if ($("accent").checked) p.set("a", "1");
   go(p);
 });
-$("clear").addEventListener("click", function () { $("q").value = ""; go(new URLSearchParams()); });
+$("clear").addEventListener("click", function () {
+  $("q").value = ""; $("sec").value = ""; $("from").value = ""; $("to").value = ""; $("accent").checked = false;
+  go(new URLSearchParams());
+});
+/* Đổi "Nguồn" là áp dụng ngay (không cần bấm Tìm kiếm). Khoảng ngày / phân biệt dấu chỉ có nghĩa khi đang tìm từ khóa. */
+function guiForm() { $("sf").dispatchEvent(new Event("submit", { cancelable: true, bubbles: true })); }
+$("sec").addEventListener("change", guiForm);
+["from", "to", "accent"].forEach(function (id) {
+  $(id).addEventListener("change", function () { if ($("q").value.trim()) guiForm(); });
+});
 window.addEventListener("hashchange", route);
 
 async function init() {
