@@ -28,7 +28,7 @@
   .opts label { display: inline-flex; gap: 6px; align-items: center; }
   .opts select, .opts input[type=date] { padding: 4px 6px; border-radius: 4px; border: 0; font-size: 14px; }
   .layout { display: flex; gap: 20px; max-width: 1280px; margin: 0 auto; padding: 18px 16px 40px; align-items: flex-start; }
-  aside { flex: 0 0 210px; position: sticky; top: 118px; max-height: calc(100vh - 140px); overflow: auto;
+  aside { flex: 0 0 235px; position: sticky; top: 118px; max-height: calc(100vh - 140px); overflow: auto;
           background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 14px; }
   aside h2 { margin: 0 0 6px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
   aside details { margin-bottom: 4px; }
@@ -263,7 +263,7 @@ function renderSide(active) {
     const rows = byMonth[m].map(function (d) {
       const cls = d === active ? "day active" : "day";
       return '<a class="' + cls + '" href="' + dayHref(d) + '">' + fmtDate(d).slice(0, 5) +
-             " · " + thu(d).replace("Thứ ", "T").replace("Chủ nhật", "CN") +
+             " · " + thu(d) +
              "<span>" + (state.info[d] ? state.info[d].count : "") + "</span></a>";
     }).join("");
     return "<details" + open + "><summary>Tháng " + m.slice(5) + "/" + m.slice(0, 4) +
