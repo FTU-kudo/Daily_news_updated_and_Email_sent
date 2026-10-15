@@ -1,7 +1,7 @@
 name: Bao cao tin tuc thi truong hang ngay
 
 on:
-  workflow_dispatch: {}  # kich hoat qua nut "Run workflow" hoac API (cron-job.org luc 7h50 sang)
+  workflow_dispatch: {}  # kich hoat qua nut "Run workflow" hoac API (cron-job.org: 7h30 = ban sang, 16h30 = ban chieu)
 
 # Chi cho phep 1 luot chay tai mot thoi diem (tranh 2 luot cung ghi vao kho luu tru)
 concurrency:
@@ -82,7 +82,8 @@ jobs:
           if git diff --cached --quiet; then
             echo "Khong co thay doi nao de luu."
           else
-            git commit -m "Cap nhat ban tin $(TZ=Asia/Ho_Chi_Minh date +%Y-%m-%d)"
+            if [ "$(TZ=Asia/Ho_Chi_Minh date +%H)" -lt 12 ]; then PHIEN_TEN=sang; else PHIEN_TEN=chieu; fi
+            git commit -m "Cap nhat ban tin $(TZ=Asia/Ho_Chi_Minh date +%Y-%m-%d) (${PHIEN_TEN})"
             git pull --rebase origin ${{ github.ref_name }}
             git push origin HEAD:${{ github.ref_name }}
           fi
