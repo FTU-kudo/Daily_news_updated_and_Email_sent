@@ -57,6 +57,20 @@
   .item .src { font-style: italic; font-weight: bold; }
   .item .sm { margin-top: 3px; text-align: justify; }
   .tag { display: inline-block; font-size: 12px; font-weight: bold; padding: 1px 7px; border-radius: 3px; background: #e0e7ff; color: #4338ca; margin-right: 6px; }
+  .ed { display: block; width: fit-content; margin-top: 4px; padding: 1px 7px; border-radius: 3px; font-size: 11px; font-weight: bold; letter-spacing: .3px; text-transform: uppercase; }
+  .ed-sang { background: #fef3c7; color: #92400e; }
+  .ed-chieu { background: #e0e7ff; color: #3730a3; }
+  @media (prefers-color-scheme: dark) { .ed-sang { background: #78350f; color: #fde68a; } .ed-chieu { background: #312e81; color: #c7d2fe; } }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; margin-top: 4px; }
+  .tab { display: inline-flex; flex-direction: column; padding: 7px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); text-decoration: none; font-weight: bold; min-width: 130px; }
+  .tab small { font-weight: normal; color: var(--muted); font-size: 12px; }
+  .tab.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .tab.on small { color: #cbd5e1; }
+  .tab[aria-disabled=true] { opacity: .45; pointer-events: none; }
+  .edinfo { width: 100%; font-size: 14px; background: var(--card); border-left: 4px solid var(--navy); padding: 8px 12px; border-radius: 4px; }
+  aside a.day span i.chip { font-style: normal; font-weight: bold; font-size: 10px; padding: 0 4px; margin-right: 3px; border-radius: 3px; }
+  aside a.day span i.chip.s { background: #fef3c7; color: #92400e; }
+  aside a.day span i.chip.c { background: #e0e7ff; color: #3730a3; }
   mark { background: var(--mark); color: inherit; padding: 0 1px; border-radius: 2px; }
   .res-day { margin: 22px 0 6px; font-weight: bold; font-size: 17px; }
   .res-day a { text-decoration: none; }
@@ -88,6 +102,13 @@
         <option value="cafebiz">CafeBiz</option>
         <option value="quoc-te">Điểm tin vĩ mô toàn cầu</option>
         <option value="mediastack">Mediastack</option>
+      </select>
+    </label>
+    <label>Phiên
+      <select id="ed">
+        <option value="">Cả ngày</option>
+        <option value="sang">Sáng</option>
+        <option value="chieu">Chiều</option>
       </select>
     </label>
     <label title="Chỉ áp dụng khi tìm từ khóa">Từ ngày <input type="date" id="from"></label>
@@ -209,7 +230,11 @@ function highlight(text, terms, accents) {
 
 const COLORS = { "trong-nuoc": "#1e3a8a", "cafef": "#991b1b", "cafebiz": "#c2410c", "quoc-te": "#0f766e", "mediastack": "#4c1d95" };
 const $ = function (id) { return document.getElementById(id); };
-const state = { days: [], info: {}, cache: {}, shown: 150, sec: "" };
+const state = { days: [], info: {}, cache: {}, shown: 150, sec: "", ed: "" };
+const ED_TEN = { sang: "Sáng", chieu: "Chiều" };
+/* Quy ước: trước 12:00 = bản sáng, từ 12:00 = bản chiều (khớp với archive.py) */
+function edFromGenerated(g) { const m = /^\s*(\d{1,2}):\d{2}/.exec(g || ""); return m && +m[1] >= 12 ? "chieu" : "sang"; }
+function hhmm(g) { const m = /(\d{1,2}:\d{2})/.exec(g || ""); return m ? m[1] : ""; }
 
 async function fetchJson(url, opts) {
   const r = await fetch(url, opts);
@@ -220,8 +245,15 @@ async function fetchJson(url, opts) {
 async function loadDay(date) {
   if (state.cache[date]) return state.cache[date];
   const d = await fetchJson("data/" + date + ".json");
+  if (!d.editions || !Object.keys(d.editions).length) {      // file do phiên bản cũ tạo: suy phiên từ giờ tổng hợp
+    d.editions = {}; d.editions[edFromGenerated(d.generated_at)] = { generated_at: d.generated_at || "" };
+  }
+  const dflt = Object.keys(d.editions)[0];
+  d._n = { sang: 0, chieu: 0 };
   (d.sections || []).forEach(function (s) {
     (s.items || []).forEach(function (it) {
+      if (it.ed !== "sang" && it.ed !== "chieu") it.ed = dflt;
+      d._n[it.ed]++;
       ["time", "category", "title", "source", "summary", "link"].forEach(function (k) {
         it[k] = (it[k] || "").normalize("NFC");   // đồng nhất dạng Unicode để tìm kiếm không bị sót
       });
@@ -246,7 +278,10 @@ async function loadMany(dates, onProgress) {
 
 function getParams() { return new URLSearchParams(location.hash.replace(/^#/, "")); }
 /* Địa chỉ xem 1 ngày; giữ nguyên bộ lọc "Nguồn" đang chọn khi chuyển ngày */
-function dayHref(d) { return "#d=" + d + (state.sec ? "&s=" + encodeURIComponent(state.sec) : ""); }
+function dayHref(d, ed) {
+  const e = ed === undefined ? state.ed : ed;
+  return "#d=" + d + (e ? "&e=" + e : "") + (state.sec ? "&s=" + encodeURIComponent(state.sec) : "");
+}
 function go(params) {              // đổi địa chỉ; nếu địa chỉ không đổi thì vẽ lại ngay
   const before = location.hash.replace(/^#/, ""), after = params.toString();
   if (before === after) route(); else location.hash = after;
@@ -262,9 +297,13 @@ function renderSide(active) {
     const open = (m === activeMonth || (!activeMonth && i === 0)) ? " open" : "";
     const rows = byMonth[m].map(function (d) {
       const cls = d === active ? "day active" : "day";
+      const inf = state.info[d] || {};
+      const eds = (inf.editions && inf.editions.length) ? inf.editions : [edFromGenerated(inf.generated)];
+      const chips = eds.map(function (e) {
+        return '<i class="chip ' + (e === "sang" ? "s" : "c") + '" title="Có bản tin ' + ED_TEN[e].toLowerCase() + '">' + (e === "sang" ? "S" : "C") + "</i>";
+      }).join("");
       return '<a class="' + cls + '" href="' + dayHref(d) + '">' + fmtDate(d).slice(0, 5) +
-             " · " + thu(d) +
-             "<span>" + (state.info[d] ? state.info[d].count : "") + "</span></a>";
+             " · " + thu(d) + "<span>" + chips + (inf.count || "") + "</span></a>";
     }).join("");
     return "<details" + open + "><summary>Tháng " + m.slice(5) + "/" + m.slice(0, 4) +
            " (" + byMonth[m].length + ")</summary>" + rows + "</details>";
@@ -279,8 +318,45 @@ function itemHtml(it, hl) {
   const titleHtml = url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + title + "</a>" : title;
   const src = it.source ? ' — <span class="src">' + highlight(it.source, terms, acc) + "</span>" : "";
   const tag = it.category ? '<span class="tag">' + highlight(it.category, terms, acc) + "</span>" : "";
-  return '<div class="item"><div class="t">' + esc(it.time) + '</div><div><div class="ti">' + tag + titleHtml + src +
+  const badge = (it.ed === "sang" || it.ed === "chieu") ? '<span class="ed ed-' + it.ed + '">' + ED_TEN[it.ed] + "</span>" : "";
+  return '<div class="item"><div class="t">' + esc(it.time) + badge + '</div><div><div class="ti">' + tag + titleHtml + src +
          '</div><div class="sm">' + highlight(it.summary, terms, acc) + "</div></div></div>";
+}
+
+/* ---------- Thẻ chuyển phiên Sáng / Chiều ---------- */
+function gioPhien(has, e) { return has[e] && hhmm(has[e].generated_at) ? " · " + hhmm(has[e].generated_at) : ""; }
+
+function edTabs(date, has, n) {
+  const defs = [
+    ["", "Cả ngày", (n.sang + n.chieu) + " tin", true],
+    ["sang", "Sáng", n.sang + " tin" + gioPhien(has, "sang"), !!has.sang],
+    ["chieu", "Chiều", n.chieu + (has.sang ? " tin mới" : " tin") + gioPhien(has, "chieu"), !!has.chieu],
+  ];
+  return '<div class="tabs">' + defs.map(function (t) {
+    const cls = "tab" + (state.ed === t[0] ? " on" : "");
+    if (!t[3]) return '<span class="' + cls + '" aria-disabled="true">' + t[1] + "<small>chưa có</small></span>";
+    return '<a class="' + cls + '" href="' + dayHref(date, t[0]) + '">' + t[1] + "<small>" + esc(t[2]) + "</small></a>";
+  }).join("") + "</div>";
+}
+
+function edInfo(date, has) {
+  const g = function (e) { return has[e] && hhmm(has[e].generated_at) ? hhmm(has[e].generated_at) : ""; };
+  if (state.ed === "sang") {
+    return "<b>Bản tin sáng</b>" + (g("sang") ? " — cập nhật lúc " + g("sang") : "") + ". Gồm các tin phát hiện trong lần chạy buổi sáng.";
+  }
+  if (state.ed === "chieu") {
+    return "<b>Bản tin chiều</b>" + (g("chieu") ? " — cập nhật lúc " + g("chieu") : "") + ". " +
+           (has.sang ? "Chỉ gồm tin <u>mới</u> xuất hiện sau bản sáng; tin đã có ở bản sáng không lặp lại."
+                     : "Gồm các tin phát hiện trong lần chạy buổi chiều.");
+  }
+  const parts = [];
+  if (has.sang) parts.push("bản sáng" + (g("sang") ? " (" + g("sang") + ")" : ""));
+  if (has.chieu) parts.push("bản chiều" + (g("chieu") ? " (" + g("chieu") + ")" : ""));
+  let s = "<b>Tin cả ngày</b> = " + parts.join(" + ") + ". Nhãn " +
+          '<span class="ed ed-sang" style="display:inline">Sáng</span> / <span class="ed ed-chieu" style="display:inline">Chiều</span>' +
+          " trên mỗi tin cho biết bản tin nào đã phát hiện ra tin đó.";
+  if (has.sang && !has.chieu && date === state.days[0]) s += " Bản chiều thường được cập nhật vào khoảng 16:30.";
+  return s;
 }
 
 /* ---------- Xem 1 ngày ---------- */
@@ -301,18 +377,31 @@ async function renderDay(date) {
   const nav = function (d, label) {
     return d ? '<a class="btn" href="' + dayHref(d) + '">' + label + "</a>" : '<a class="btn" aria-disabled="true">' + label + "</a>";
   };
-  const secs = (data.sections || []).filter(function (s) { return !state.sec || s.id === state.sec; });
+  const has = data.editions || {};
+  const secs = (data.sections || []).map(function (s) {
+    if (state.sec && s.id !== state.sec) return null;
+    const items = s.items.filter(function (it) { return !state.ed || it.ed === state.ed; });
+    return items.length ? { id: s.id, group: s.group, title: s.title, items: items } : null;
+  }).filter(Boolean);
   const shownCount = secs.reduce(function (n, s) { return n + s.items.length; }, 0);
-  const totalCount = (data.sections || []).reduce(function (n, s) { return n + s.items.length; }, 0);
+  const totalCount = data._n.sang + data._n.chieu;
   const secName = state.sec ? (($("sec").selectedOptions[0] || {}).textContent || state.sec) : "";
+  const edName = state.ed ? ED_TEN[state.ed].toLowerCase() : "";
+  const pdfs = (state.info[date] && state.info[date].pdfs) || {};
+  const pdfBtn = ["sang", "chieu"].filter(function (e) { return /^pdf\/[\w.-]+\.pdf$/.test(pdfs[e] || ""); }).map(function (e) {
+    const gio = has[e] && hhmm(has[e].generated_at) ? " " + hhmm(has[e].generated_at) : "";
+    return '<a class="btn" href="' + esc(pdfs[e]) + '" target="_blank" rel="noopener">Tải PDF bản ' + ED_TEN[e].toLowerCase() + gio + "</a>";
+  }).join("");
+  const meta = (state.sec || state.ed)
+    ? shownCount + " tin" + (edName ? " · bản " + edName : "") + (state.sec ? " · nguồn “" + esc(secName) + "”" : "") + " (trên tổng " + totalCount + " tin của ngày)"
+    : totalCount + " tin trong ngày";
   let html = '<div class="daybar"><h2>' + thu(date) + ", " + fmtDate(date) + "</h2>" +
-             nav(older, "◀ Ngày trước") + nav(newer, "Ngày sau ▶") +
-             (data.pdf ? '<a class="btn" href="' + esc(data.pdf) + '" target="_blank" rel="noopener">Tải PDF</a>' : "") +
-             '<div class="meta">' + (data.generated_at ? "Tổng hợp lúc " + esc(data.generated_at) + " · " : "") +
-             (state.sec ? shownCount + " tin thuộc nguồn “" + esc(secName) + "” (trên tổng " + totalCount + " tin của ngày)" : totalCount + " tin") +
-             "</div></div>";
-  if (state.sec && !secs.length) {
-    html += '<div class="state">Ngày này không có tin thuộc nguồn “' + esc(secName) + "”.<br>Chọn “Tất cả” hoặc chuyển sang ngày khác.</div>";
+             nav(older, "◀ Ngày trước") + nav(newer, "Ngày sau ▶") + pdfBtn +
+             edTabs(date, has, data._n) + '<div class="edinfo">' + edInfo(date, has) + "</div>" +
+             '<div class="meta">' + meta + "</div></div>";
+  if (!secs.length) {
+    html += '<div class="state">Ngày này không có tin' + (edName ? " trong bản " + edName : "") +
+            (state.sec ? " thuộc nguồn “" + esc(secName) + "”" : "") + ".<br>Hãy đổi bộ lọc hoặc chuyển sang ngày khác.</div>";
   }
   let group = "";
   secs.forEach(function (s) {
@@ -331,6 +420,7 @@ async function renderSearch(p, keepScroll) {
   const q = (p.get("q") || "").trim();
   const accents = p.get("a") === "1";
   const secId = p.get("s") || "";
+  const edId = p.get("e") === "sang" || p.get("e") === "chieu" ? p.get("e") : "";
   const from = p.get("from") || "", to = p.get("to") || "";
   const alts = parseQuery(q);
   if (!alts.length) { go(new URLSearchParams()); return; }
@@ -357,14 +447,14 @@ async function renderSearch(p, keepScroll) {
     data.sections.forEach(function (s) {
       if (secId && s.id !== secId) return;
       s.items.forEach(function (it) {
-        if (itemMatches(it, folded, accents)) { results.push({ date: d, section: s, item: it }); hit = true; }
+        if ((!edId || it.ed === edId) && itemMatches(it, folded, accents)) { results.push({ date: d, section: s, item: it }); hit = true; }
       });
     });
     if (hit) days++;
   });
 
   let html = '<div class="daybar"><h2>Kết quả cho “' + esc(q) + "”</h2>" +
-             '<div class="meta">' + results.length + " tin trong " + days + " / " + dates.length + " bản tin" +
+             '<div class="meta">' + results.length + " tin trong " + days + " / " + dates.length + " bản tin" + (edId ? " · chỉ bản " + ED_TEN[edId].toLowerCase() : "") +
              (dates.length ? " (" + fmtDate(dates[dates.length - 1]) + " → " + fmtDate(dates[0]) + ")" : "") + "</div></div>";
   if (!results.length) {
     html += '<div class="state">Không tìm thấy tin nào khớp. Thử bỏ bớt từ khóa, hoặc bỏ tick “Phân biệt dấu”.</div>';
@@ -393,6 +483,8 @@ async function renderSearch(p, keepScroll) {
 function route() {
   const p = getParams();
   state.sec = p.get("s") || "";
+  state.ed = p.get("e") === "sang" || p.get("e") === "chieu" ? p.get("e") : "";
+  $("ed").value = state.ed;
   $("q").value = p.get("q") || "";
   $("sec").value = p.get("s") || "";
   $("from").value = p.get("from") || "";
@@ -410,12 +502,14 @@ $("sf").addEventListener("submit", function (e) {
     const p0 = new URLSearchParams();
     const cur = getParams().get("d");
     if (cur) p0.set("d", cur);
+    if ($("ed").value) p0.set("e", $("ed").value);
     if ($("sec").value) p0.set("s", $("sec").value);
     go(p0);
     return;
   }
   state.shown = 150;
   const p = new URLSearchParams({ q: q });
+  if ($("ed").value) p.set("e", $("ed").value);
   if ($("sec").value) p.set("s", $("sec").value);
   if ($("from").value) p.set("from", $("from").value);
   if ($("to").value) p.set("to", $("to").value);
@@ -423,12 +517,12 @@ $("sf").addEventListener("submit", function (e) {
   go(p);
 });
 $("clear").addEventListener("click", function () {
-  $("q").value = ""; $("sec").value = ""; $("from").value = ""; $("to").value = ""; $("accent").checked = false;
+  $("q").value = ""; $("sec").value = ""; $("ed").value = ""; $("from").value = ""; $("to").value = ""; $("accent").checked = false;
   go(new URLSearchParams());
 });
 /* Đổi "Nguồn" là áp dụng ngay (không cần bấm Tìm kiếm). Khoảng ngày / phân biệt dấu chỉ có nghĩa khi đang tìm từ khóa. */
 function guiForm() { $("sf").dispatchEvent(new Event("submit", { cancelable: true, bubbles: true })); }
-$("sec").addEventListener("change", guiForm);
+["sec", "ed"].forEach(function (id) { $(id).addEventListener("change", guiForm); });
 ["from", "to", "accent"].forEach(function (id) {
   $(id).addEventListener("change", function () { if ($("q").value.trim()) guiForm(); });
 });
