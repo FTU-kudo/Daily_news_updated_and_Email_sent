@@ -39,7 +39,7 @@ from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 
-from archive import luu_ban_tin  # kho lưu trữ bản tin (trang GitHub Pages)
+from archive import luu_ban_tin, phien_hien_tai, TEN_PHIEN  # kho lưu trữ bản tin (trang GitHub Pages)
 
 
 # ======================================================================
@@ -574,6 +574,7 @@ def xuat_bao_cao_pdf(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediast
     ngay_xuat_file = thoi_gian_vn_hien_tai.strftime("%d_%m_%Y")
     gio_phut_giay = thoi_gian_vn_hien_tai.strftime("%H%M%S")
     gio_hien_thi_footer = thoi_gian_vn_hien_tai.strftime("%H:%M ngày %d/%m/%Y")
+    ten_phien = TEN_PHIEN[phien_hien_tai(thoi_gian_vn_hien_tai)].upper()   # BUỔI SÁNG / BUỔI CHIỀU
 
     ten_file_pdf = f"Cap_nhat_Tin_tuc_ngay_{ngay_xuat_file}_{gio_phut_giay}.pdf"
     duong_dan_luu_pdf = os.path.join(WORKDIR, ten_file_pdf)
@@ -600,6 +601,7 @@ def xuat_bao_cao_pdf(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediast
     .col-title { width: 33%; font-weight: bold; }
     .col-summary { width: 55%; }
     .footer { text-align: right; margin-top: 50px; font-size: 10pt; color: #64748b; font-style: italic; }
+    .phien-ban { text-align: center; font-size: 12pt; font-weight: bold; color: #475569; margin: 4px 0 6px; }
     @page {
         margin-bottom: 2cm;
         @bottom-center {
@@ -621,6 +623,7 @@ def xuat_bao_cao_pdf(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediast
 </head>
 <body>
     <h1>BÁO CÁO PHÂN TÍCH TIN TỨC THỊ TRƯỜNG</h1>
+    <div class="phien-ban">BẢN TIN {ten_phien} · {gio_hien_thi_footer}</div>
 """
 
     # PHẦN I: TRONG NƯỚC
