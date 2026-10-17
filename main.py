@@ -49,7 +49,7 @@ WORKDIR = os.path.dirname(os.path.abspath(__file__))
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 MEDIA_STACK_KEY = os.environ.get("MEDIA_STACK_API_KEY", "")
-TEN_MODEL = "gemini-3.1-flash-lite"
+TEN_MODEL = "gemini-3.5-flash-lite"
 
 if not GEMINI_API_KEY:
     sys.exit("❌ Thiếu biến môi trường GEMINI_API_KEY. Hãy khai báo secret trước khi chạy.")
