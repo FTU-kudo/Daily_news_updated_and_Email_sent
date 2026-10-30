@@ -29,6 +29,7 @@ import smtplib
 import mimetypes
 import argparse
 from email.message import EmailMessage
+from urllib.parse import quote_plus
 
 import requests
 import feedparser
@@ -40,6 +41,7 @@ from google.genai import types
 from google.genai.errors import APIError
 
 from archive import luu_ban_tin, phien_hien_tai, TEN_PHIEN  # kho lưu trữ bản tin (trang GitHub Pages)
+from translate_en import dich_kho_luu_tru                   # bản dịch tiếng Anh cho trang web
 
 
 # ======================================================================
@@ -120,6 +122,98 @@ def goi_gemini(prompt_text, retries=3, wait_giay=20):
 
 
 # ======================================================================
+# NGUỒN TIN MỞ RỘNG (chỉ hiển thị trên trang web và tìm kiếm, KHÔNG đưa vào PDF)
+# ======================================================================
+def _google_news_vi(truy_van):
+    """Địa chỉ Google News RSS (tiếng Việt, VN) cho 1 truy vấn tìm kiếm, chỉ lấy tin trong 24 giờ gần nhất."""
+    return ("https://news.google.com/rss/search?q=" + quote_plus("(" + truy_van + ") when:24h")
+            + "&hl=vi&gl=VN&ceid=VN:vi")
+
+
+# Chủ đề còn mỏng trong kho lưu trữ -> tìm theo từ khóa (cùng cơ chế với mục "Kinh tế Vĩ mô")
+NGUON_CHU_DE_TRONG_NUOC = {
+    "Trái phiếu": _google_news_vi('"trái phiếu" OR "lợi suất trái phiếu"'),
+    "Vàng & Hàng hóa": _google_news_vi('"giá vàng" OR "giá dầu" OR "giá thép" OR "giá cà phê"'),
+    "Bất động sản": _google_news_vi('"bất động sản" OR "thị trường nhà đất"'),
+    "Quy định chứng khoán": _google_news_vi('"Ủy ban Chứng khoán" OR UBCKNN OR HOSE OR HNX OR "Sở Giao dịch Chứng khoán"'),
+}
+
+# Nguồn chính thức của ngân hàng trung ương (RSS công bố trên website của Fed và ECB)
+# chuyên mục -> (địa chỉ RSS, tên nguồn hiển thị)
+NGUON_NGAN_HANG_TRUNG_UONG = {
+    "Fed - Chính sách tiền tệ": ("https://www.federalreserve.gov/feeds/press_monetary.xml", "Federal Reserve"),
+    "Fed - Phát biểu & Điều trần": ("https://www.federalreserve.gov/feeds/speeches_and_testimony.xml", "Federal Reserve"),
+    "ECB - Thông cáo & Phát biểu": ("https://www.ecb.europa.eu/rss/press.xml", "ECB"),
+}
+# Feed chính thức không lọc theo ngày, nên chỉ lấy tin đăng trong N giờ gần nhất
+# (tránh việc cùng một thông cáo cũ xuất hiện lại mỗi ngày).
+GIO_TOI_DA_NGAN_HANG_TRUNG_UONG = 24
+SO_TIN_TOI_DA_MOI_FEED_CHINH_THUC = 5
+
+# Các chuyên mục dưới đây chỉ hiện trên web, KHÔNG đưa vào PDF (giữ PDF gọn).
+# Muốn đưa vào PDF: xóa tên chuyên mục tương ứng khỏi tập hợp này.
+CHUYEN_MUC_CHI_DANG_WEB = set(NGUON_CHU_DE_TRONG_NUOC) | set(NGUON_NGAN_HANG_TRUNG_UONG)
+
+
+def bo_muc_chi_dang_web(df):
+    """Bỏ các chuyên mục chỉ đăng trên web ra khỏi bảng dùng để dựng PDF."""
+    if df is None or df.empty or "Chuyên mục" not in df.columns:
+        return df
+    return df[~df["Chuyên mục"].isin(CHUYEN_MUC_CHI_DANG_WEB)].reset_index(drop=True)
+
+
+def lay_tin_ngan_hang_trung_uong(id_bat_dau):
+    """Lấy tin từ RSS chính thức của Fed/ECB (chỉ tin trong GIO_TOI_DA giờ gần nhất).
+    Trả về danh sách tin cùng định dạng với các hàm lấy tin khác; mỗi feed lỗi chỉ bị bỏ qua, không làm sập cả lần chạy."""
+    ket_qua = []
+    id_counter = id_bat_dau
+    bay_gio = pd.Timestamp.now(tz="UTC")
+    for chuyen_muc, (url, ten_nguon) in NGUON_NGAN_HANG_TRUNG_UONG.items():
+        try:
+            feed = feedparser.parse(url, agent=HEADERS["User-Agent"])
+        except Exception as e:
+            print(f"  ⚠️ Không đọc được feed {chuyen_muc}: {e}")
+            continue
+        if not feed.entries:
+            print(f"  ⚠️ Feed {chuyen_muc} không có bài nào (HTTP {getattr(feed, 'status', '?')}).")
+            continue
+        so_tin = 0
+        for entry in feed.entries:
+            moc = entry.get("published_parsed") or entry.get("updated_parsed")
+            if not moc:
+                continue                      # không rõ giờ đăng -> bỏ để khỏi lặp lại tin cũ
+            try:
+                thoi_gian = pd.Timestamp(*moc[:6], tz="UTC")
+            except Exception:
+                continue
+            tuoi = bay_gio - thoi_gian
+            if tuoi > pd.Timedelta(hours=GIO_TOI_DA_NGAN_HANG_TRUNG_UONG) or tuoi < -pd.Timedelta(hours=1):
+                continue
+            tieu_de = " ".join((entry.get("title") or "").split())
+            link = entry.get("link") or ""
+            if not tieu_de or not link:
+                continue
+            ket_qua.append(
+                {
+                    "ID": id_counter,
+                    "Chuyên mục": chuyen_muc,
+                    # thêm " - Tên nguồn" để cùng định dạng với tin Google News (kho lưu trữ sẽ tách riêng tên nguồn)
+                    "Tiêu đề gốc": f"{tieu_de} - {ten_nguon}",
+                    "Mô tả gốc": BeautifulSoup(entry.get("summary", ""), "html.parser").text.strip(),
+                    "Link": link,
+                    "Thời gian": thoi_gian.tz_convert("Asia/Ho_Chi_Minh").strftime("%d/%m/%Y %H:%M"),
+                }
+            )
+            id_counter += 1
+            so_tin += 1
+            if so_tin >= SO_TIN_TOI_DA_MOI_FEED_CHINH_THUC:
+                break
+        print(f"  -> {chuyen_muc}: {so_tin} tin trong {GIO_TOI_DA_NGAN_HANG_TRUNG_UONG} giờ gần nhất.")
+        time.sleep(0.3)
+    return ket_qua
+
+
+# ======================================================================
 # 1. TIN TRONG NƯỚC (Google News RSS)
 # ======================================================================
 def lay_tin_trong_nuoc():
@@ -129,6 +223,7 @@ def lay_tin_trong_nuoc():
         "Tin Thời sự": "https://news.google.com/rss?hl=vi&gl=VN&ceid=VN:vi",
         "Tin Cập nhật": "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FuWnBHZ0pXVGlnQVAB?hl=vi&gl=VN&ceid=VN:vi",
     }
+    nguon.update(NGUON_CHU_DE_TRONG_NUOC)   # thêm các chủ đề: trái phiếu, vàng & hàng hóa, bất động sản, quy định CK
 
     danh_sach_tin = []
     id_counter = 0
@@ -231,6 +326,8 @@ def lay_tin_quoc_te():
             )
             id_counter += 1
         time.sleep(0.3)
+
+    danh_sach_tin += lay_tin_ngan_hang_trung_uong(id_counter)   # Fed, ECB (nguồn chính thức)
 
     print(f"  -> Thu thập {len(danh_sach_tin)} tin quốc tế.")
     if not danh_sach_tin:
@@ -496,7 +593,9 @@ def lay_tin_mediastack():
             for idx, item in enumerate(bai_viet):
                 raw_time = item.get("published_at", "")
                 try:
-                    thoi_gian_chuan = pd.to_datetime(raw_time).strftime("%d/%m/%Y %H:%M")
+                    # Mediastack trả giờ UTC (vd. "2026-10-19T03:15:00+00:00"): đổi sang giờ Việt Nam như các nguồn khác
+                    thoi_gian_chuan = (pd.to_datetime(raw_time, utc=True).tz_convert("Asia/Ho_Chi_Minh")
+                                       .strftime("%d/%m/%Y %H:%M"))
                 except Exception:
                     thoi_gian_chuan = raw_time
 
@@ -844,8 +943,9 @@ def doc_csv_an_toan(ten_file):
 
 def dang_ban_tin(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack):
     """Xuất PDF -> lưu vào kho lưu trữ (trang GitHub Pages) -> gửi email (chỉ khi đang bật)."""
+    # PDF giữ nguyên như cũ: không đưa các chuyên mục mở rộng (chỉ hiện trên web) vào
     duong_dan_pdf, gio_hien_thi_footer = xuat_bao_cao_pdf(
-        df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack
+        bo_muc_chi_dang_web(df_trong_nuoc), df_cafef, df_cafebiz, bo_muc_chi_dang_web(df_quoc_te), df_mediastack
     )
 
     loi_kho = None
@@ -853,10 +953,18 @@ def dang_ban_tin(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack)
         luu_ban_tin(
             df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack,
             duong_dan_pdf=duong_dan_pdf, gio_hien_thi=gio_hien_thi_footer,
+            gio_mediastack_la_vn=True,      # lay_tin_mediastack() đã đổi sang giờ Việt Nam
         )
     except Exception as e:
         loi_kho = e
         print(f"  ❌ Lỗi khi lưu kho lưu trữ: {e}")
+
+    if loi_kho is None:
+        print("\n[Bản dịch tiếng Anh] Đang dịch các tin chưa có bản tiếng Anh...")
+        try:
+            dich_kho_luu_tru(goi_gemini)      # không bao giờ làm sập quy trình: lỗi chỉ được ghi log
+        except Exception as e:
+            print(f"  ⚠️ Bỏ qua bước dịch tiếng Anh do lỗi: {e}")
 
     gui_email(duong_dan_pdf, gio_hien_thi_footer)   # tự bỏ qua nếu ENABLE_EMAIL != true
 
