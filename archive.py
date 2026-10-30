@@ -26,6 +26,7 @@ import re
 import sys
 import json
 import shutil
+from datetime import datetime, timedelta
 
 import pandas as pd
 
@@ -179,6 +180,7 @@ def gop_ban_tin(cu, moi_theo_muc, ed, gio_hien_thi, ngay):
                 # Tin đã có: giữ nguyên nhãn phiên đầu tiên; chỉ bổ sung chỗ còn thiếu
                 if _tom_tat_yeu(ex.get("summary")) and not _tom_tat_yeu(it.get("summary")):
                     ex["summary"] = it["summary"]
+                    ex.pop("summary_en", None)      # bản dịch tiếng Anh cũ không còn khớp -> sẽ được dịch lại
                 for f in ("time", "category", "source", "link"):
                     if not ex.get(f) and it.get(f):
                         ex[f] = it[f]
@@ -193,7 +195,7 @@ def gop_ban_tin(cu, moi_theo_muc, ed, gio_hien_thi, ngay):
 
     editions = dict(cu.get("editions", {}))
     editions[ed] = {"generated_at": gio_hien_thi}
-    return {"date": ngay, "generated_at": gio_hien_thi, "editions": editions, "sections": cac_muc}
+    return {"date": ngay, "generated_at": gio_hien_thi, "editions": editions, "tz_mediastack": "vn", "sections": cac_muc}
 
 
 def _migrar_pdf_cu(ngay, goi):
@@ -233,6 +235,62 @@ def _ghi_json(duong_dan, du_lieu):
     with open(tam, "w", encoding="utf-8") as f:
         json.dump(du_lieu, f, ensure_ascii=False, separators=(",", ":"))
     os.replace(tam, duong_dan)  # ghi nguyên tử: không bao giờ để lại file dở dang
+
+
+# ----------------------------------------------------------------------
+# Giờ của tin Mediastack: UTC -> giờ Việt Nam (GMT+7)
+# ----------------------------------------------------------------------
+RE_GIO_TIN = re.compile(r"^(\d{2})/(\d{2})/(\d{4}) (\d{2}):(\d{2})$")
+
+
+def _utc_sang_vn(chuoi, so_gio=7):
+    """'27/10/2026 23:30' (UTC) -> '28/10/2026 06:30' (giờ VN). Chuỗi không đúng dạng thì giữ nguyên."""
+    m = RE_GIO_TIN.match((chuoi or "").strip())
+    if not m:
+        return chuoi
+    d, mo, y, h, mi = (int(x) for x in m.groups())
+    try:
+        return (datetime(y, mo, d, h, mi) + timedelta(hours=so_gio)).strftime("%d/%m/%Y %H:%M")
+    except ValueError:
+        return chuoi
+
+
+def _doi_gio_mediastack(goi):
+    """Đổi giờ UTC -> giờ VN cho các tin trong mục Mediastack của 1 ngày. Trả về số tin đã đổi."""
+    n = 0
+    for muc in (goi or {}).get("sections", []):
+        if muc.get("id") != "mediastack":
+            continue
+        for it in muc.get("items", []):
+            moi = _utc_sang_vn(it.get("time"))
+            if moi != it.get("time"):
+                it["time"] = moi
+                n += 1
+    return n
+
+
+def sua_gio_mediastack_cu(thu_muc=None):
+    """CHUYỂN MỘT LẦN các file ngày cũ: giờ tin Mediastack từng lưu theo UTC -> giờ Việt Nam.
+    Mỗi file được đánh dấu "tz_mediastack": "vn" sau khi chuyển nên chạy lại bao nhiêu lần cũng KHÔNG cộng thêm lần hai."""
+    thu_muc = thu_muc or DATA_DIR
+    thong_ke = {"ngay_da_chuyen": 0, "tin_da_chuyen": 0}
+    if not os.path.isdir(thu_muc):
+        return thong_ke
+    for ten in sorted(os.listdir(thu_muc)):
+        ngay = ten[:-5]
+        if not ten.endswith(".json") or not RE_NGAY.match(ngay):
+            continue
+        duong_dan = os.path.join(thu_muc, ten)
+        goi = _doc_json(duong_dan, None)
+        if not goi or goi.get("tz_mediastack") == "vn":
+            continue
+        thong_ke["tin_da_chuyen"] += _doi_gio_mediastack(goi)
+        goi["tz_mediastack"] = "vn"
+        _ghi_json(duong_dan, goi)
+        thong_ke["ngay_da_chuyen"] += 1
+    if thong_ke["ngay_da_chuyen"]:
+        print(f"  -> Đổi giờ Mediastack UTC -> giờ VN: {thong_ke['tin_da_chuyen']} tin trong {thong_ke['ngay_da_chuyen']} ngày.")
+    return thong_ke
 
 
 def xay_lai_index():
@@ -277,9 +335,12 @@ def luu_ban_tin(
     gio_hien_thi="",
     ngay=None,
     phien=None,
+    gio_mediastack_la_vn=False,
 ):
     """Gộp bản tin của lần chạy này vào file của ngày. Trả về đường dẫn file JSON,
-    hoặc None nếu lần chạy này không có tin nào (khi đó không đụng gì tới kho)."""
+    hoặc None nếu lần chạy này không có tin nào (khi đó không đụng gì tới kho).
+    gio_mediastack_la_vn: True nếu bảng Mediastack truyền vào đã ở giờ Việt Nam (main.py mới).
+    Mặc định False = coi như giờ UTC (main.py cũ) và tự đổi, nên hai file cập nhật lệch nhau cũng không làm sai giờ."""
     if ngay is None:
         ngay = pd.Timestamp.now("Asia/Ho_Chi_Minh").strftime("%Y-%m-%d")
     if not RE_NGAY.match(ngay):
@@ -304,6 +365,11 @@ def luu_ban_tin(
         print("  ⚠️ Lần chạy này không có tin nào -> KHÔNG thay đổi kho lưu trữ.")
         return None
 
+    sua_gio_mediastack_cu()                 # chuyển một lần các ngày cũ (giờ UTC -> giờ VN); đã chuyển rồi thì bỏ qua
+    if not gio_mediastack_la_vn:            # bảng Mediastack lần này còn ở giờ UTC
+        for it in moi_theo_muc["mediastack"]:
+            it["time"] = _utc_sang_vn(it["time"])
+
     duong_dan_json = os.path.join(DATA_DIR, f"{ngay}.json")
     cu = _doc_json(duong_dan_json, None)
     _migrar_pdf_cu(ngay, cu)          # trước khi gộp: file cũ còn nguyên dấu hiệu "chưa có editions"
@@ -325,7 +391,9 @@ def luu_ban_tin(
 
 
 if __name__ == "__main__":
-    if "--rebuild-index" in sys.argv:
+    if "--fix-mediastack" in sys.argv:
+        sua_gio_mediastack_cu()
+    elif "--rebuild-index" in sys.argv:
         xay_lai_index()
     else:
         print(__doc__)
