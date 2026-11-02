@@ -1,0 +1,86 @@
+name: Dich bu tieng Anh cho tin cu
+
+# Chay TAY mot lan (hoac vai lan) de dich nhanh phan tin cu chua co ban tieng Anh.
+# Khong lay tin moi, khong tao ban tin moi. Dung chay vao khoang 7h30 va 16h30 (gio chay tu dong cua bao cao hang ngay).
+on:
+  workflow_dispatch:
+    inputs:
+      toi_da:
+        description: "So tin toi da dich trong lan nay (800 la du cho ~16 lo; neu van con tin thi chay lai)"
+        required: false
+        default: "800"
+
+# Dung chung nhom voi workflow bao cao hang ngay de hai workflow khong ghi vao docs/data cung luc
+concurrency:
+  group: daily-news
+  cancel-in-progress: false
+
+jobs:
+  dich-bu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cai dat Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cai dat thu vien Python (chi nhung thu can cho viec dich)
+        run: pip install pandas feedparser beautifulsoup4 requests google-genai
+
+      - name: Dich bu tieng Anh
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TOI_DA: ${{ inputs.toi_da }}
+          GIOI_HAN_GIAY: "1800"
+        run: python -u dich_bu.py
+
+      - name: Luu ban dich vao kho (chi commit docs/data)
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p docs/data
+          git add -f docs/data
+          if git diff --cached --quiet; then
+            echo "Khong co thay doi nao de luu."
+          else
+            git commit -m "Dich bu tieng Anh cho tin cu"
+            git pull --rebase origin ${{ github.ref_name }}
+            git push origin HEAD:${{ github.ref_name }}
+          fi
+
+  deploy-site:
+    needs: dich-bu
+    if: always() && needs.dich-bu.result != 'cancelled'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout (ban moi nhat, da gom ban dich vua luu)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Cau hinh Pages
+        uses: actions/configure-pages@v5
+
+      - name: Dong goi thu muc docs
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs
+
+      - name: Trien khai len GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
