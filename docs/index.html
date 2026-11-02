@@ -81,54 +81,212 @@
     .layout { flex-direction: column; }
     aside { position: static; max-height: 240px; width: 100%; flex: none; }
     .item { grid-template-columns: 1fr; }
-    header { position: static; }
+    header { position: relative; }
   }
+  header h1 { padding-right: 96px; }
+  .lang { position: absolute; top: 12px; right: 20px; display: flex; }
+  .lang button { padding: 4px 10px; border: 1px solid rgba(255,255,255,.55); background: transparent; color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; }
+  .lang button:first-child { border-radius: 6px 0 0 6px; }
+  .lang button:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
+  .lang button[aria-pressed=true] { background: #fbbf24; color: #1e293b; border-color: #fbbf24; }
+  .viflag { display: block; width: fit-content; margin-top: 4px; padding: 0 6px; font-size: 10px; font-weight: bold; border-radius: 3px; background: #e2e8f0; color: #475569; }
+  footer div + div { margin-top: 4px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>BÁO CÁO PHÂN TÍCH TIN TỨC THỊ TRƯỜNG <small>Cập nhật hằng ngày</small></h1>
+  <div id="langbar" class="lang" role="group" aria-label="Language / Ngôn ngữ">
+    <button type="button" data-lang="vi">VI</button><button type="button" data-lang="en">EN</button>
+  </div>
+  <h1><span data-i18n="h1">BÁO CÁO PHÂN TÍCH TIN TỨC THỊ TRƯỜNG</span> <small data-i18n="h1_sub">Cập nhật hằng ngày</small></h1>
   <form id="sf" autocomplete="off">
-    <input type="search" id="q" placeholder="Tìm trong toàn bộ lịch sử: lãi suất, MSFT, &quot;tỷ giá&quot; | VN-Index ..." aria-label="Từ khóa tìm kiếm">
-    <button type="submit">Tìm kiếm</button>
-    <button type="button" class="ghost" id="clear">Xóa</button>
+    <input type="search" id="q" data-i18n-ph="ph" data-i18n-aria="aria_q" placeholder="Tìm trong toàn bộ lịch sử: lãi suất, MSFT, &quot;tỷ giá&quot; | VN-Index ..." aria-label="Từ khóa tìm kiếm">
+    <button type="submit" data-i18n="btn_search">Tìm kiếm</button>
+    <button type="button" class="ghost" id="clear" data-i18n="btn_clear">Xóa</button>
   </form>
   <div class="opts">
-    <label>Nguồn
+    <label><span data-i18n="lbl_source">Nguồn</span>
       <select id="sec">
-        <option value="">Tất cả</option>
-        <option value="trong-nuoc">Điểm tin vĩ mô &amp; doanh nghiệp</option>
-        <option value="cafef">CafeF</option>
-        <option value="cafebiz">CafeBiz</option>
-        <option value="quoc-te">Điểm tin vĩ mô toàn cầu</option>
-        <option value="mediastack">Mediastack</option>
+        <option value="" data-i18n="opt_all">Tất cả</option>
+        <option value="trong-nuoc" data-i18n="opt_trong-nuoc">Điểm tin vĩ mô &amp; doanh nghiệp</option>
+        <option value="cafef" data-i18n="opt_cafef">CafeF</option>
+        <option value="cafebiz" data-i18n="opt_cafebiz">CafeBiz</option>
+        <option value="quoc-te" data-i18n="opt_quoc-te">Điểm tin vĩ mô toàn cầu</option>
+        <option value="mediastack" data-i18n="opt_mediastack">Mediastack</option>
       </select>
     </label>
-    <label>Phiên
+    <label><span data-i18n="lbl_ed">Phiên</span>
       <select id="ed">
-        <option value="">Cả ngày</option>
-        <option value="sang">Sáng</option>
-        <option value="chieu">Chiều</option>
+        <option value="" data-i18n="opt_ed_all">Cả ngày</option>
+        <option value="sang" data-i18n="opt_sang">Sáng</option>
+        <option value="chieu" data-i18n="opt_chieu">Chiều</option>
       </select>
     </label>
-    <label title="Chỉ áp dụng khi tìm từ khóa">Từ ngày <input type="date" id="from"></label>
-    <label title="Chỉ áp dụng khi tìm từ khóa">Đến ngày <input type="date" id="to"></label>
-    <label title="Chỉ áp dụng khi tìm từ khóa"><input type="checkbox" id="accent"> Phân biệt dấu</label>
+    <label data-i18n-title="tip_kw" title="Chỉ áp dụng khi tìm từ khóa"><span data-i18n="lbl_from">Từ ngày</span> <input type="date" id="from"></label>
+    <label data-i18n-title="tip_kw" title="Chỉ áp dụng khi tìm từ khóa"><span data-i18n="lbl_to">Đến ngày</span> <input type="date" id="to"></label>
+    <label data-i18n-title="tip_kw" title="Chỉ áp dụng khi tìm từ khóa"><input type="checkbox" id="accent"> <span data-i18n="lbl_accent">Phân biệt dấu</span></label>
   </div>
 </header>
 
 <div class="layout">
-  <aside id="side"><h2>Lịch sử bản tin</h2><div id="sidelist">Đang tải…</div></aside>
+  <aside id="side"><h2 data-i18n="side_title">Lịch sử bản tin</h2><div id="sidelist">Đang tải…</div></aside>
   <main id="main"><div class="state">Đang tải dữ liệu…</div></main>
 </div>
-<footer>© Bản quyền thuộc về FTU-kudo</footer>
-<noscript><p class="state">Trang này cần bật JavaScript để hiển thị và tìm kiếm bản tin.</p></noscript>
+<footer>
+  <div data-i18n="footer_copy">© Bản quyền thuộc về FTU-kudo</div>
+  <div data-i18n="footer_ai">Tóm tắt do AI tạo, chỉ mang tính tham khảo, không phải khuyến nghị đầu tư.</div>
+</footer>
+<noscript><p class="state">Trang này cần bật JavaScript để hiển thị và tìm kiếm bản tin. / This page needs JavaScript to display and search the bulletins.</p></noscript>
 
 <script>
 "use strict";
 
+/* ===================== NGÔN NGỮ / LANGUAGE ===================== */
+const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_EN_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const THU = {
+  vi: ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"],
+  en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+};
+const SEC_EN = {
+  "trong-nuoc": "Vietnam macro & corporate news",
+  "cafef": "CafeF timeline: market pulse",
+  "cafebiz": "CafeBiz timeline: filtered finance news",
+  "quoc-te": "Global macro news",
+  "mediastack": "Global financial data (Mediastack)",
+};
+const GROUP_EN = { "Trong nước": "VIETNAM", "Quốc tế": "INTERNATIONAL" };
+const CAT_EN = {
+  "Kinh tế Vĩ mô": "Macroeconomy", "Tin Thời sự": "Current affairs", "Tin Cập nhật": "Latest updates",
+  "Tin Chính phủ & Doanh nghiệp": "Government & business", "Tin Nổi Bật (Trang chủ)": "Top stories",
+  "Tin Nổi Bật Toàn Cầu": "Global top stories", "Doanh Nghiệp Quốc Tế": "International business",
+  "Vĩ Mô & Phố Wall": "Macro & Wall Street",
+  "Trái phiếu": "Bonds", "Vàng & Hàng hóa": "Gold & commodities", "Bất động sản": "Real estate",
+  "Quy định chứng khoán": "Securities regulation",
+  "Fed - Chính sách tiền tệ": "Fed - Monetary policy", "Fed - Phát biểu & Điều trần": "Fed - Speeches & testimony",
+  "ECB - Thông cáo & Phát biểu": "ECB - Press & speeches",
+  "Kinh doanh": "Business", "Tài chính ngân hàng": "Finance & banking", "Chứng khoán": "Stocks", "Doanh nghiệp": "Companies",
+};
+const ED_TEN = { vi: { sang: "Sáng", chieu: "Chiều" }, en: { sang: "Morning", chieu: "Afternoon" } };
+const COLORS = { "trong-nuoc": "#1e3a8a", "cafef": "#991b1b", "cafebiz": "#c2410c", "quoc-te": "#0f766e", "mediastack": "#4c1d95" };
+
+const I18N = {
+  vi: {
+    title: "Báo cáo phân tích tin tức thị trường",
+    h1: "BÁO CÁO PHÂN TÍCH TIN TỨC THỊ TRƯỜNG", h1_sub: "Cập nhật hằng ngày",
+    ph: 'Tìm trong toàn bộ lịch sử: lãi suất, MSFT, "tỷ giá" | VN-Index ...', aria_q: "Từ khóa tìm kiếm",
+    btn_search: "Tìm kiếm", btn_clear: "Xóa",
+    lbl_source: "Nguồn", opt_all: "Tất cả", "opt_trong-nuoc": "Điểm tin vĩ mô & doanh nghiệp", opt_cafef: "CafeF", opt_cafebiz: "CafeBiz",
+    "opt_quoc-te": "Điểm tin vĩ mô toàn cầu", opt_mediastack: "Mediastack",
+    lbl_ed: "Phiên", opt_ed_all: "Cả ngày", opt_sang: "Sáng", opt_chieu: "Chiều",
+    lbl_from: "Từ ngày", lbl_to: "Đến ngày", lbl_accent: "Phân biệt dấu", tip_kw: "Chỉ áp dụng khi tìm từ khóa",
+    side_title: "Lịch sử bản tin", loading_side: "Đang tải…", loading_main: "Đang tải dữ liệu…",
+    footer_copy: "© Bản quyền thuộc về FTU-kudo", footer_ai: "Tóm tắt do AI tạo, chỉ mang tính tham khảo, không phải khuyến nghị đầu tư.",
+    month: function (m, y) { return "Tháng " + m + "/" + y; },
+    chip_title: function (e) { return "Có bản tin " + ED_TEN.vi[e].toLowerCase(); },
+    chip: { sang: "S", chieu: "C" },
+    tab_all: "Cả ngày", tab_n: function (n) { return n + " tin"; },
+    tab_sang_sub: function (n, g) { return n + " tin" + g; },
+    tab_chieu_sub: function (n, hasSang, g) { return n + (hasSang ? " tin mới" : " tin") + g; },
+    tab_none: "chưa có",
+    info_sang: function (g) { return "<b>Bản tin sáng</b>" + (g ? " — cập nhật lúc " + g : "") + ". Gồm các tin phát hiện trong lần chạy buổi sáng."; },
+    info_chieu: function (g, hasSang) {
+      return "<b>Bản tin chiều</b>" + (g ? " — cập nhật lúc " + g : "") + ". " +
+        (hasSang ? "Chỉ gồm tin <u>mới</u> xuất hiện sau bản sáng; tin đã có ở bản sáng không lặp lại." : "Gồm các tin phát hiện trong lần chạy buổi chiều.");
+    },
+    ed_part: function (e, g) { return "bản " + ED_TEN.vi[e].toLowerCase() + (g ? " (" + g + ")" : ""); },
+    info_all: function (parts, badges, hint) {
+      return "<b>Tin cả ngày</b> = " + parts.join(" + ") + ". Nhãn " + badges + " trên mỗi tin cho biết bản tin nào đã phát hiện ra tin đó." +
+        (hint ? " Bản chiều thường được cập nhật vào khoảng 16:30." : "");
+    },
+    day_missing: function (d) { return 'Không có bản tin cho ngày <b>' + d + "</b>.<br>Hãy chọn một ngày trong danh sách bên trái."; },
+    day_loading: function (d) { return "Đang tải bản tin ngày " + d + "…"; },
+    day_fail: function (d) { return "Không tải được dữ liệu ngày " + d + "."; },
+    prev: "◀ Ngày trước", next: "Ngày sau ▶",
+    pdf: function (e, g) { return "Tải PDF bản " + ED_TEN.vi[e].toLowerCase() + g; },
+    meta_all: function (n) { return n + " tin trong ngày"; },
+    meta_filtered: function (shown, edName, secName, total) {
+      return shown + " tin" + (edName ? " · bản " + edName : "") + (secName ? " · nguồn “" + secName + "”" : "") + " (trên tổng " + total + " tin của ngày)";
+    },
+    empty_day: function (edName, secName) {
+      return "Ngày này không có tin" + (edName ? " trong bản " + edName : "") + (secName ? " thuộc nguồn “" + secName + "”" : "") +
+        ".<br>Hãy đổi bộ lọc hoặc chuyển sang ngày khác.";
+    },
+    search_h: function (q) { return "Kết quả cho “" + q + "”"; },
+    search_loading: "Đang tải dữ liệu lịch sử…", search_progress: function (n, t) { return "Đang tải dữ liệu lịch sử… " + n + "/" + t; },
+    search_meta: function (n, days, total, edName, range) {
+      return n + " tin trong " + days + " / " + total + " bản tin" + (edName ? " · chỉ bản " + edName : "") + range;
+    },
+    search_none: "Không tìm thấy tin nào khớp. Thử bỏ bớt từ khóa, hoặc bỏ tick “Phân biệt dấu”.",
+    more: function (n) { return "Hiện thêm (" + n + " tin nữa)"; },
+    empty_archive: "Chưa có bản tin nào trong kho lưu trữ.<br>Bản tin đầu tiên sẽ xuất hiện sau lần chạy tự động kế tiếp.",
+    empty_side: "Chưa có bản tin.",
+    untranslated: "",
+  },
+  en: {
+    title: "Market News Analysis Report",
+    h1: "MARKET NEWS ANALYSIS REPORT", h1_sub: "Updated daily",
+    ph: 'Search the full archive: interest rate, MSFT, "exchange rate" | VN-Index ...', aria_q: "Search keywords",
+    btn_search: "Search", btn_clear: "Clear",
+    lbl_source: "Source", opt_all: "All", "opt_trong-nuoc": "Vietnam macro & corporate news", opt_cafef: "CafeF", opt_cafebiz: "CafeBiz",
+    "opt_quoc-te": "Global macro news", opt_mediastack: "Mediastack",
+    lbl_ed: "Edition", opt_ed_all: "Full day", opt_sang: "Morning", opt_chieu: "Afternoon",
+    lbl_from: "From", lbl_to: "To", lbl_accent: "Match accents", tip_kw: "Applies only when searching by keyword",
+    side_title: "Archive", loading_side: "Loading…", loading_main: "Loading data…",
+    footer_copy: "© FTU-kudo. All rights reserved.",
+    footer_ai: "Summaries are AI-generated, for reference only, and not investment advice. Vietnamese-language items are machine-translated into English; the PDF reports are in Vietnamese.",
+    month: function (m, y) { return MONTHS_EN_FULL[+m - 1] + " " + y; },
+    chip_title: function (e) { return ED_TEN.en[e] + " edition available"; },
+    chip: { sang: "AM", chieu: "PM" },
+    tab_all: "Full day", tab_n: function (n) { return n + (n === 1 ? " item" : " items"); },
+    tab_sang_sub: function (n, g) { return n + (n === 1 ? " item" : " items") + g; },
+    tab_chieu_sub: function (n, hasSang, g) { return n + (hasSang ? (n === 1 ? " new item" : " new items") : (n === 1 ? " item" : " items")) + g; },
+    tab_none: "none yet",
+    info_sang: function (g) { return "<b>Morning edition</b>" + (g ? " — updated at " + g : "") + ". Items found in the morning run."; },
+    info_chieu: function (g, hasSang) {
+      return "<b>Afternoon edition</b>" + (g ? " — updated at " + g : "") + ". " +
+        (hasSang ? "Only <u>new</u> items that appeared after the morning edition; items already in the morning edition are not repeated." : "Items found in the afternoon run.");
+    },
+    ed_part: function (e, g) { return ED_TEN.en[e].toLowerCase() + " edition" + (g ? " (" + g + ")" : ""); },
+    info_all: function (parts, badges, hint) {
+      return "<b>Full day</b> = " + parts.join(" + ") + ". The " + badges + " label on each item shows which edition found it." +
+        (hint ? " The afternoon edition is usually updated around 16:30." : "");
+    },
+    day_missing: function (d) { return "No bulletin for <b>" + d + "</b>.<br>Pick a day from the archive list."; },
+    day_loading: function (d) { return "Loading the bulletin for " + d + "…"; },
+    day_fail: function (d) { return "Could not load the data for " + d + "."; },
+    prev: "◀ Previous day", next: "Next day ▶",
+    pdf: function (e, g) { return "Download PDF (Vietnamese) · " + ED_TEN.en[e].toLowerCase() + g; },
+    meta_all: function (n) { return n + (n === 1 ? " item that day" : " items that day"); },
+    meta_filtered: function (shown, edName, secName, total) {
+      return shown + (shown === 1 ? " item" : " items") + (edName ? " · " + edName + " edition" : "") + (secName ? " · source “" + secName + "”" : "") + " (of " + total + " items that day)";
+    },
+    empty_day: function (edName, secName) {
+      return "No items for this day" + (edName ? " in the " + edName + " edition" : "") + (secName ? " from source “" + secName + "”" : "") +
+        ".<br>Change the filters or choose another day.";
+    },
+    search_h: function (q) { return "Results for “" + q + "”"; },
+    search_loading: "Loading the archive…", search_progress: function (n, t) { return "Loading the archive… " + n + "/" + t; },
+    search_meta: function (n, days, total, edName, range) {
+      return n + (n === 1 ? " item" : " items") + " in " + days + " of " + total + " bulletins" + (edName ? " · " + edName + " edition only" : "") + range;
+    },
+    search_none: "No matching items. Try fewer keywords, or untick “Match accents”.",
+    more: function (n) { return "Show more (" + n + " more)"; },
+    empty_archive: "The archive is empty.<br>The first bulletin will appear after the next scheduled run.",
+    empty_side: "No bulletins yet.",
+    untranslated: "Not yet translated",
+  },
+};
+
+const $ = function (id) { return document.getElementById(id); };
+const state = { days: [], info: {}, cache: {}, shown: 150, sec: "", ed: "", lang: "vi" };
+function t(key) {
+  const v = I18N[state.lang][key];
+  return typeof v === "function" ? v.apply(null, Array.prototype.slice.call(arguments, 1)) : v;
+}
+
 /* <pure> — các hàm thuần (không đụng DOM), được kiểm thử riêng bằng Node */
-const THU = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
+const RE_VN = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i;
 
 function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -139,14 +297,25 @@ function safeUrl(u) {
   return /^https?:\/\//i.test(u || "") ? u : "";
 }
 
-function fmtDate(iso) {            // 2026-10-03 -> 03/10/2026
+function fmtDate(iso) {            // vi: 03/10/2026 | en: 03 Oct 2026
   const [y, m, d] = iso.split("-");
-  return d + "/" + m + "/" + y;
+  return state.lang === "en" ? d + " " + MONTHS_EN[+m - 1] + " " + y : d + "/" + m + "/" + y;
 }
 
-function thu(iso) {                // 2026-10-03 -> "Thứ bảy"
+function fmtShort(iso) {           // vi: 03/10 | en: 03 Oct
+  const [, m, d] = iso.split("-");
+  return state.lang === "en" ? d + " " + MONTHS_EN[+m - 1] : d + "/" + m;
+}
+
+function fmtTime(s) {              // "03/10/2026 14:58" -> (en) "03 Oct 2026 14:58"
+  if (state.lang !== "en") return s;
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})(.*)$/.exec(s || "");
+  return m && +m[2] >= 1 && +m[2] <= 12 ? m[1] + " " + MONTHS_EN[+m[2] - 1] + " " + m[3] + m[4] : s;
+}
+
+function thu(iso) {                // 2026-10-03 -> "Thứ bảy" | "Saturday"
   const [y, m, d] = iso.split("-").map(Number);
-  return THU[new Date(y, m - 1, d).getDay()];
+  return THU[state.lang][new Date(y, m - 1, d).getDay()];
 }
 
 /* Chuẩn hóa chuỗi để so khớp. accents=false: bỏ dấu tiếng Việt (lai suat == lãi suất).
@@ -183,10 +352,11 @@ function foldQuery(alts, accents) {
   return alts.map(function (terms) { return terms.map(function (t) { return fold(t, accents).text; }); });
 }
 
+/* Tìm trên cả bản tiếng Việt lẫn tiếng Anh, bất kể đang xem ngôn ngữ nào */
 function itemHay(it, accents) {
   const k = accents ? "_h1" : "_h0";
   if (it[k] === undefined) {
-    it[k] = fold([it.title, it.summary, it.category, it.source].join(" \n "), accents).text;
+    it[k] = fold([it.title, it.summary, it.category, it.source, it.title_en, it.summary_en, CAT_EN[it.category] || ""].join(" \n "), accents).text;
   }
   return it[k];
 }
@@ -228,13 +398,13 @@ function highlight(text, terms, accents) {
 }
 /* </pure> */
 
-const COLORS = { "trong-nuoc": "#1e3a8a", "cafef": "#991b1b", "cafebiz": "#c2410c", "quoc-te": "#0f766e", "mediastack": "#4c1d95" };
-const $ = function (id) { return document.getElementById(id); };
-const state = { days: [], info: {}, cache: {}, shown: 150, sec: "", ed: "" };
-const ED_TEN = { sang: "Sáng", chieu: "Chiều" };
 /* Quy ước: trước 12:00 = bản sáng, từ 12:00 = bản chiều (khớp với archive.py) */
 function edFromGenerated(g) { const m = /^\s*(\d{1,2}):\d{2}/.exec(g || ""); return m && +m[1] >= 12 ? "chieu" : "sang"; }
 function hhmm(g) { const m = /(\d{1,2}:\d{2})/.exec(g || ""); return m ? m[1] : ""; }
+function edName(e) { return ED_TEN[state.lang][e]; }
+function catName(c) { return state.lang === "en" ? (CAT_EN[c] || c) : c; }
+function secTitle(s) { return state.lang === "en" ? (SEC_EN[s.id] || s.title) : s.title; }
+function groupName(g) { return state.lang === "en" ? (GROUP_EN[g] || String(g).toUpperCase()) : String(g).toUpperCase(); }
 
 async function fetchJson(url, opts) {
   const r = await fetch(url, opts);
@@ -254,7 +424,7 @@ async function loadDay(date) {
     (s.items || []).forEach(function (it) {
       if (it.ed !== "sang" && it.ed !== "chieu") it.ed = dflt;
       d._n[it.ed]++;
-      ["time", "category", "title", "source", "summary", "link"].forEach(function (k) {
+      ["time", "category", "title", "source", "summary", "link", "title_en", "summary_en"].forEach(function (k) {
         it[k] = (it[k] || "").normalize("NFC");   // đồng nhất dạng Unicode để tìm kiếm không bị sót
       });
     });
@@ -277,14 +447,43 @@ async function loadMany(dates, onProgress) {
 }
 
 function getParams() { return new URLSearchParams(location.hash.replace(/^#/, "")); }
-/* Địa chỉ xem 1 ngày; giữ nguyên bộ lọc "Nguồn" đang chọn khi chuyển ngày */
+/* Địa chỉ xem 1 ngày; giữ nguyên bộ lọc đang chọn và ngôn ngữ khi chuyển ngày */
 function dayHref(d, ed) {
   const e = ed === undefined ? state.ed : ed;
-  return "#d=" + d + (e ? "&e=" + e : "") + (state.sec ? "&s=" + encodeURIComponent(state.sec) : "");
+  return "#d=" + d + (e ? "&e=" + e : "") + (state.sec ? "&s=" + encodeURIComponent(state.sec) : "") + (state.lang === "en" ? "&l=en" : "");
 }
 function go(params) {              // đổi địa chỉ; nếu địa chỉ không đổi thì vẽ lại ngay
+  if (state.lang === "en") params.set("l", "en"); else params.delete("l");
   const before = location.hash.replace(/^#/, ""), after = params.toString();
   if (before === after) route(); else location.hash = after;
+}
+
+/* ---------- Ngôn ngữ giao diện ---------- */
+function readLang(p) {
+  let l = p.get("l");
+  if (l !== "vi" && l !== "en") { try { l = localStorage.getItem("lang"); } catch (e) { l = null; } }
+  return l === "en" ? "en" : "vi";
+}
+function saveLang(l) { try { localStorage.setItem("lang", l); } catch (e) { /* trình duyệt chặn lưu trữ: bỏ qua */ } }
+
+function applyStatic() {
+  const L = I18N[state.lang];
+  document.documentElement.lang = state.lang;
+  document.title = L.title;
+  document.querySelectorAll("[data-i18n]").forEach(function (el) { el.textContent = L[el.getAttribute("data-i18n")]; });
+  document.querySelectorAll("[data-i18n-ph]").forEach(function (el) { el.setAttribute("placeholder", L[el.getAttribute("data-i18n-ph")]); });
+  document.querySelectorAll("[data-i18n-aria]").forEach(function (el) { el.setAttribute("aria-label", L[el.getAttribute("data-i18n-aria")]); });
+  document.querySelectorAll("[data-i18n-title]").forEach(function (el) { el.setAttribute("title", L[el.getAttribute("data-i18n-title")]); });
+  document.querySelectorAll("#langbar button").forEach(function (b) {
+    b.setAttribute("aria-pressed", b.getAttribute("data-lang") === state.lang ? "true" : "false");
+  });
+}
+
+function switchLang(l) {
+  saveLang(l);
+  const p = getParams();
+  state.lang = l;                  // go() sẽ ghi/xóa tham số l theo state.lang
+  go(p);
 }
 
 /* ---------- Thanh bên: danh sách ngày theo tháng ---------- */
@@ -300,12 +499,12 @@ function renderSide(active) {
       const inf = state.info[d] || {};
       const eds = (inf.editions && inf.editions.length) ? inf.editions : [edFromGenerated(inf.generated)];
       const chips = eds.map(function (e) {
-        return '<i class="chip ' + (e === "sang" ? "s" : "c") + '" title="Có bản tin ' + ED_TEN[e].toLowerCase() + '">' + (e === "sang" ? "S" : "C") + "</i>";
+        return '<i class="chip ' + (e === "sang" ? "s" : "c") + '" title="' + esc(t("chip_title", e)) + '">' + I18N[state.lang].chip[e] + "</i>";
       }).join("");
-      return '<a class="' + cls + '" href="' + dayHref(d) + '">' + fmtDate(d).slice(0, 5) +
+      return '<a class="' + cls + '" href="' + dayHref(d) + '">' + fmtShort(d) +
              " · " + thu(d) + "<span>" + chips + (inf.count || "") + "</span></a>";
     }).join("");
-    return "<details" + open + "><summary>Tháng " + m.slice(5) + "/" + m.slice(0, 4) +
+    return "<details" + open + "><summary>" + t("month", m.slice(5), m.slice(0, 4)) +
            " (" + byMonth[m].length + ")</summary>" + rows + "</details>";
   }).join("");
 }
@@ -313,14 +512,17 @@ function renderSide(active) {
 /* ---------- Giao diện 1 tin ---------- */
 function itemHtml(it, hl) {
   const terms = hl ? hl.terms : [], acc = hl ? hl.accents : false;
+  const en = state.lang === "en";
   const url = safeUrl(it.link);
-  const title = highlight(it.title, terms, acc);
+  const title = highlight(en ? (it.title_en || it.title) : it.title, terms, acc);
   const titleHtml = url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + title + "</a>" : title;
   const src = it.source ? ' — <span class="src">' + highlight(it.source, terms, acc) + "</span>" : "";
-  const tag = it.category ? '<span class="tag">' + highlight(it.category, terms, acc) + "</span>" : "";
-  const badge = (it.ed === "sang" || it.ed === "chieu") ? '<span class="ed ed-' + it.ed + '">' + ED_TEN[it.ed] + "</span>" : "";
-  return '<div class="item"><div class="t">' + esc(it.time) + badge + '</div><div><div class="ti">' + tag + titleHtml + src +
-         '</div><div class="sm">' + highlight(it.summary, terms, acc) + "</div></div></div>";
+  const tag = it.category ? '<span class="tag">' + highlight(catName(it.category), terms, acc) + "</span>" : "";
+  const badge = (it.ed === "sang" || it.ed === "chieu") ? '<span class="ed ed-' + it.ed + '">' + edName(it.ed) + "</span>" : "";
+  const pending = en && ((!it.title_en && RE_VN.test(it.title)) || (!it.summary_en && RE_VN.test(it.summary)));
+  const flag = pending ? '<span class="viflag" title="' + esc(t("untranslated")) + '">VI</span>' : "";
+  return '<div class="item"><div class="t">' + esc(fmtTime(it.time)) + badge + flag + '</div><div><div class="ti">' + tag + titleHtml + src +
+         '</div><div class="sm">' + highlight(en ? (it.summary_en || it.summary) : it.summary, terms, acc) + "</div></div></div>";
 }
 
 /* ---------- Thẻ chuyển phiên Sáng / Chiều ---------- */
@@ -328,35 +530,26 @@ function gioPhien(has, e) { return has[e] && hhmm(has[e].generated_at) ? " · " 
 
 function edTabs(date, has, n) {
   const defs = [
-    ["", "Cả ngày", (n.sang + n.chieu) + " tin", true],
-    ["sang", "Sáng", n.sang + " tin" + gioPhien(has, "sang"), !!has.sang],
-    ["chieu", "Chiều", n.chieu + (has.sang ? " tin mới" : " tin") + gioPhien(has, "chieu"), !!has.chieu],
+    ["", t("tab_all"), t("tab_n", n.sang + n.chieu), true],
+    ["sang", edName("sang"), t("tab_sang_sub", n.sang, gioPhien(has, "sang")), !!has.sang],
+    ["chieu", edName("chieu"), t("tab_chieu_sub", n.chieu, !!has.sang, gioPhien(has, "chieu")), !!has.chieu],
   ];
-  return '<div class="tabs">' + defs.map(function (t) {
-    const cls = "tab" + (state.ed === t[0] ? " on" : "");
-    if (!t[3]) return '<span class="' + cls + '" aria-disabled="true">' + t[1] + "<small>chưa có</small></span>";
-    return '<a class="' + cls + '" href="' + dayHref(date, t[0]) + '">' + t[1] + "<small>" + esc(t[2]) + "</small></a>";
+  return '<div class="tabs">' + defs.map(function (d) {
+    const cls = "tab" + (state.ed === d[0] ? " on" : "");
+    if (!d[3]) return '<span class="' + cls + '" aria-disabled="true">' + d[1] + "<small>" + t("tab_none") + "</small></span>";
+    return '<a class="' + cls + '" href="' + dayHref(date, d[0]) + '">' + d[1] + "<small>" + esc(d[2]) + "</small></a>";
   }).join("") + "</div>";
 }
 
 function edInfo(date, has) {
   const g = function (e) { return has[e] && hhmm(has[e].generated_at) ? hhmm(has[e].generated_at) : ""; };
-  if (state.ed === "sang") {
-    return "<b>Bản tin sáng</b>" + (g("sang") ? " — cập nhật lúc " + g("sang") : "") + ". Gồm các tin phát hiện trong lần chạy buổi sáng.";
-  }
-  if (state.ed === "chieu") {
-    return "<b>Bản tin chiều</b>" + (g("chieu") ? " — cập nhật lúc " + g("chieu") : "") + ". " +
-           (has.sang ? "Chỉ gồm tin <u>mới</u> xuất hiện sau bản sáng; tin đã có ở bản sáng không lặp lại."
-                     : "Gồm các tin phát hiện trong lần chạy buổi chiều.");
-  }
+  if (state.ed === "sang") return t("info_sang", g("sang"));
+  if (state.ed === "chieu") return t("info_chieu", g("chieu"), !!has.sang);
   const parts = [];
-  if (has.sang) parts.push("bản sáng" + (g("sang") ? " (" + g("sang") + ")" : ""));
-  if (has.chieu) parts.push("bản chiều" + (g("chieu") ? " (" + g("chieu") + ")" : ""));
-  let s = "<b>Tin cả ngày</b> = " + parts.join(" + ") + ". Nhãn " +
-          '<span class="ed ed-sang" style="display:inline">Sáng</span> / <span class="ed ed-chieu" style="display:inline">Chiều</span>' +
-          " trên mỗi tin cho biết bản tin nào đã phát hiện ra tin đó.";
-  if (has.sang && !has.chieu && date === state.days[0]) s += " Bản chiều thường được cập nhật vào khoảng 16:30.";
-  return s;
+  if (has.sang) parts.push(t("ed_part", "sang", g("sang")));
+  if (has.chieu) parts.push(t("ed_part", "chieu", g("chieu")));
+  const badges = '<span class="ed ed-sang" style="display:inline">' + edName("sang") + '</span> / <span class="ed ed-chieu" style="display:inline">' + edName("chieu") + "</span>";
+  return t("info_all", parts, badges, has.sang && !has.chieu && date === state.days[0]);
 }
 
 /* ---------- Xem 1 ngày ---------- */
@@ -364,14 +557,14 @@ async function renderDay(date) {
   const main = $("main");
   const idx = state.days.indexOf(date);
   if (idx === -1) {
-    main.innerHTML = '<div class="state">Không có bản tin cho ngày <b>' + esc(date) + "</b>.<br>Hãy chọn một ngày trong danh sách bên trái.</div>";
+    main.innerHTML = '<div class="state">' + t("day_missing", esc(date)) + "</div>";
     renderSide(null);
     return;
   }
-  main.innerHTML = '<div class="state">Đang tải bản tin ngày ' + fmtDate(date) + "…</div>";
+  main.innerHTML = '<div class="state">' + t("day_loading", fmtDate(date)) + "</div>";
   let data;
   try { data = await loadDay(date); }
-  catch (e) { main.innerHTML = '<div class="state">Không tải được dữ liệu ngày ' + fmtDate(date) + ".</div>"; return; }
+  catch (e) { main.innerHTML = '<div class="state">' + t("day_fail", fmtDate(date)) + "</div>"; return; }
 
   const older = state.days[idx + 1], newer = state.days[idx - 1];
   const nav = function (d, label) {
@@ -385,28 +578,23 @@ async function renderDay(date) {
   }).filter(Boolean);
   const shownCount = secs.reduce(function (n, s) { return n + s.items.length; }, 0);
   const totalCount = data._n.sang + data._n.chieu;
-  const secName = state.sec ? (($("sec").selectedOptions[0] || {}).textContent || state.sec) : "";
-  const edName = state.ed ? ED_TEN[state.ed].toLowerCase() : "";
+  const secLabel = state.sec ? (($("sec").selectedOptions[0] || {}).textContent || state.sec) : "";
+  const edLabel = state.ed ? edName(state.ed).toLowerCase() : "";
   const pdfs = (state.info[date] && state.info[date].pdfs) || {};
   const pdfBtn = ["sang", "chieu"].filter(function (e) { return /^pdf\/[\w.-]+\.pdf$/.test(pdfs[e] || ""); }).map(function (e) {
     const gio = has[e] && hhmm(has[e].generated_at) ? " " + hhmm(has[e].generated_at) : "";
-    return '<a class="btn" href="' + esc(pdfs[e]) + '" target="_blank" rel="noopener">Tải PDF bản ' + ED_TEN[e].toLowerCase() + gio + "</a>";
+    return '<a class="btn" href="' + esc(pdfs[e]) + '" target="_blank" rel="noopener">' + t("pdf", e, gio) + "</a>";
   }).join("");
-  const meta = (state.sec || state.ed)
-    ? shownCount + " tin" + (edName ? " · bản " + edName : "") + (state.sec ? " · nguồn “" + esc(secName) + "”" : "") + " (trên tổng " + totalCount + " tin của ngày)"
-    : totalCount + " tin trong ngày";
+  const meta = (state.sec || state.ed) ? t("meta_filtered", shownCount, edLabel, esc(secLabel), totalCount) : t("meta_all", totalCount);
   let html = '<div class="daybar"><h2>' + thu(date) + ", " + fmtDate(date) + "</h2>" +
-             nav(older, "◀ Ngày trước") + nav(newer, "Ngày sau ▶") + pdfBtn +
+             nav(older, t("prev")) + nav(newer, t("next")) + pdfBtn +
              edTabs(date, has, data._n) + '<div class="edinfo">' + edInfo(date, has) + "</div>" +
              '<div class="meta">' + meta + "</div></div>";
-  if (!secs.length) {
-    html += '<div class="state">Ngày này không có tin' + (edName ? " trong bản " + edName : "") +
-            (state.sec ? " thuộc nguồn “" + esc(secName) + "”" : "") + ".<br>Hãy đổi bộ lọc hoặc chuyển sang ngày khác.</div>";
-  }
+  if (!secs.length) html += '<div class="state">' + t("empty_day", edLabel, state.sec ? esc(secLabel) : "") + "</div>";
   let group = "";
   secs.forEach(function (s) {
-    if (s.group !== group) { group = s.group; html += '<div class="group">' + esc(group.toUpperCase()) + "</div>"; }
-    html += '<section class="sec"><h3 style="background:' + (COLORS[s.id] || "#334155") + '">' + esc(s.title) + "</h3>" +
+    if (s.group !== group) { group = s.group; html += '<div class="group">' + esc(groupName(group)) + "</div>"; }
+    html += '<section class="sec"><h3 style="background:' + (COLORS[s.id] || "#334155") + '">' + esc(secTitle(s)) + "</h3>" +
             s.items.map(function (it) { return itemHtml(it, null); }).join("") + "</section>";
   });
   main.innerHTML = html;
@@ -428,11 +616,11 @@ async function renderSearch(p, keepScroll) {
   const dates = state.days.filter(function (d) { return (!from || d >= from) && (!to || d <= to); });
   const token = (state.token = Math.random());
   if (dates.some(function (d) { return !state.cache[d]; })) {
-    main.innerHTML = '<div class="state" id="prog">Đang tải dữ liệu lịch sử…</div>';
+    main.innerHTML = '<div class="state" id="prog">' + t("search_loading") + "</div>";
   }
   await loadMany(dates, function (n, total) {
     const el = $("prog");
-    if (el && state.token === token) el.textContent = "Đang tải dữ liệu lịch sử… " + n + "/" + total;
+    if (el && state.token === token) el.textContent = t("search_progress", n, total);
   });
   if (state.token !== token) return;     // người dùng đã chuyển sang tìm kiếm khác
 
@@ -453,11 +641,11 @@ async function renderSearch(p, keepScroll) {
     if (hit) days++;
   });
 
-  let html = '<div class="daybar"><h2>Kết quả cho “' + esc(q) + "”</h2>" +
-             '<div class="meta">' + results.length + " tin trong " + days + " / " + dates.length + " bản tin" + (edId ? " · chỉ bản " + ED_TEN[edId].toLowerCase() : "") +
-             (dates.length ? " (" + fmtDate(dates[dates.length - 1]) + " → " + fmtDate(dates[0]) + ")" : "") + "</div></div>";
+  const range = dates.length ? " (" + fmtDate(dates[dates.length - 1]) + " → " + fmtDate(dates[0]) + ")" : "";
+  let html = '<div class="daybar"><h2>' + t("search_h", esc(q)) + "</h2>" +
+             '<div class="meta">' + t("search_meta", results.length, days, dates.length, edId ? edName(edId).toLowerCase() : "", range) + "</div></div>";
   if (!results.length) {
-    html += '<div class="state">Không tìm thấy tin nào khớp. Thử bỏ bớt từ khóa, hoặc bỏ tick “Phân biệt dấu”.</div>';
+    html += '<div class="state">' + t("search_none") + "</div>";
   } else {
     const shown = results.slice(0, state.shown);
     let cur = "";
@@ -466,10 +654,10 @@ async function renderSearch(p, keepScroll) {
         cur = r.date;
         html += '<div class="res-day"><a href="' + dayHref(r.date) + '">' + thu(r.date) + ", " + fmtDate(r.date) + " ›</a></div>";
       }
-      html += '<div class="res-sec">' + esc(r.section.title) + "</div>" + itemHtml(r.item, { terms: terms, accents: accents });
+      html += '<div class="res-sec">' + esc(secTitle(r.section)) + "</div>" + itemHtml(r.item, { terms: terms, accents: accents });
     });
     if (results.length > shown.length) {
-      html += '<p class="state"><a class="btn" id="more">Hiện thêm (' + (results.length - shown.length) + " tin nữa)</a></p>";
+      html += '<p class="state"><a class="btn" id="more">' + t("more", results.length - shown.length) + "</a></p>";
     }
   }
   main.innerHTML = html;
@@ -482,6 +670,9 @@ async function renderSearch(p, keepScroll) {
 /* ---------- Điều hướng ---------- */
 function route() {
   const p = getParams();
+  if (p.get("l") === "vi" || p.get("l") === "en") saveLang(p.get("l"));
+  state.lang = readLang(p);
+  applyStatic();
   state.sec = p.get("s") || "";
   state.ed = p.get("e") === "sang" || p.get("e") === "chieu" ? p.get("e") : "";
   $("ed").value = state.ed;
@@ -520,7 +711,10 @@ $("clear").addEventListener("click", function () {
   $("q").value = ""; $("sec").value = ""; $("ed").value = ""; $("from").value = ""; $("to").value = ""; $("accent").checked = false;
   go(new URLSearchParams());
 });
-/* Đổi "Nguồn" là áp dụng ngay (không cần bấm Tìm kiếm). Khoảng ngày / phân biệt dấu chỉ có nghĩa khi đang tìm từ khóa. */
+document.querySelectorAll("#langbar button").forEach(function (b) {
+  b.addEventListener("click", function () { switchLang(b.getAttribute("data-lang")); });
+});
+/* Đổi "Nguồn"/"Phiên" là áp dụng ngay (không cần bấm Tìm kiếm). Khoảng ngày / phân biệt dấu chỉ có nghĩa khi đang tìm từ khóa. */
 function guiForm() { $("sf").dispatchEvent(new Event("submit", { cancelable: true, bubbles: true })); }
 ["sec", "ed"].forEach(function (id) { $(id).addEventListener("change", guiForm); });
 ["from", "to", "accent"].forEach(function (id) {
@@ -529,14 +723,18 @@ function guiForm() { $("sf").dispatchEvent(new Event("submit", { cancelable: tru
 window.addEventListener("hashchange", route);
 
 async function init() {
+  state.lang = readLang(getParams());
+  applyStatic();
+  $("sidelist").textContent = t("loading_side");
+  $("main").innerHTML = '<div class="state">' + t("loading_main") + "</div>";
   try {
     const idx = await fetchJson("data/index.json", { cache: "no-cache" });
     (idx.days || []).forEach(function (d) { state.info[d.date] = d; });
     state.days = Object.keys(state.info).sort().reverse();
   } catch (e) { state.days = []; }
   if (!state.days.length) {
-    $("sidelist").textContent = "Chưa có bản tin.";
-    $("main").innerHTML = '<div class="state">Chưa có bản tin nào trong kho lưu trữ.<br>Bản tin đầu tiên sẽ xuất hiện sau lần chạy tự động kế tiếp.</div>';
+    $("sidelist").textContent = t("empty_side");
+    $("main").innerHTML = '<div class="state">' + t("empty_archive") + "</div>";
     return;
   }
   $("from").min = $("to").min = state.days[state.days.length - 1];
