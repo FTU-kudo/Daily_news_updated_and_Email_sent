@@ -40,8 +40,9 @@ from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 
-from archive import luu_ban_tin, phien_hien_tai, TEN_PHIEN  # kho lưu trữ bản tin (trang GitHub Pages)
+from archive import luu_ban_tin, phien_hien_tai, TEN_PHIEN, _tom_tat_loi_api  # kho lưu trữ bản tin (trang GitHub Pages)
 from translate_en import dich_kho_luu_tru                   # bản dịch tiếng Anh cho trang web
+from tom_tat_lai import chua_tom_tat_kho                    # tự tóm tắt lại các tin bị lỗi trong kho
 
 
 # ======================================================================
@@ -70,8 +71,39 @@ HEADERS = {
 EMAIL_BAT = os.environ.get("ENABLE_EMAIL", "false").strip().lower() in ("1", "true", "yes", "on")
 
 
-def goi_gemini(prompt_text, retries=3, wait_giay=20):
-    """Gọi Gemini, tự động thử lại khi gặp lỗi quota/mạng. Trả về dict JSON hoặc None."""
+# Mã lỗi tạm thời (đáng thử lại). Các lỗi 4xx khác (400, 403, 404...) thử lại cũng vô ích nên bỏ cuộc ngay.
+_MA_LOI_TAM_THOI = {408, 429, 500, 502, 503, 504}
+# Tổng thời gian tối đa dành cho việc chờ thử lại trong CẢ lần chạy. Hết ngân sách thì các lần gọi sau chỉ thử 1 lần
+# rồi bỏ qua (tin lỗi sẽ được tự sửa ở lần chạy sau), để job không bao giờ chạy quá 30 phút.
+_NGAN_SACH_CHO_GIAY = 420
+_da_cho_giay = 0.0
+
+
+def _cho_roi_thu_lai(giay):
+    """Chờ `giay` giây nếu còn ngân sách. Trả về False (không chờ) khi đã hết ngân sách."""
+    global _da_cho_giay
+    if _da_cho_giay + giay > _NGAN_SACH_CHO_GIAY:
+        return False
+    _da_cho_giay += giay
+    time.sleep(giay)
+    return True
+
+
+def _loi_tam_thoi(e):
+    """Lỗi quá tải/mạng/hạn mức (đáng chờ rồi thử lại) hay lỗi vĩnh viễn?"""
+    ma = getattr(e, "code", None)
+    if isinstance(ma, int):
+        return ma in _MA_LOI_TAM_THOI
+    # Lỗi không có mã HTTP (mạng, hết thời gian chờ...): nhận diện theo từ khóa, KHÔNG dùng số trần
+    # (vì lỗi đọc JSON kiểu "Extra data: line 66 column 500" cũng chứa số 500 nhưng không phải lỗi máy chủ).
+    msg = str(e).lower()
+    return any(k in msg for k in ("quota", "unavailable", "overloaded", "timeout", "timed out", "deadline",
+                                  "resource_exhausted", "rate limit", "connection", "temporarily"))
+
+
+def goi_gemini(prompt_text, retries=5, wait_giay=15):
+    """Gọi Gemini, tự động thử lại khi gặp lỗi quá tải/hạn mức/mạng với thời gian chờ tăng dần
+    (15s, 30s, 60s, 120s). Trả về dict JSON hoặc None."""
     for lan in range(retries):
         try:
             response = client.models.generate_content(
@@ -107,14 +139,19 @@ def goi_gemini(prompt_text, retries=3, wait_giay=20):
                 raw_text = raw_text.strip()
             obj, _ = json.JSONDecoder().raw_decode(raw_text)
             return obj
-        except APIError as e:
-            print(f"  ⚠️ Lỗi máy chủ Gemini (lần {lan + 1}/{retries}): {e}")
-            time.sleep(wait_giay)
         except Exception as e:
-            msg = str(e)
-            if "429" in msg or "Quota" in msg:
-                print(f"  ⚠️ Quá tải định mức API (lần {lan + 1}/{retries}). Chờ {wait_giay}s...")
-                time.sleep(wait_giay)
+            if isinstance(e, APIError) or _loi_tam_thoi(e):
+                if not _loi_tam_thoi(e):
+                    print(f"  ❌ Gemini từ chối (lỗi không thể thử lại): {e}")
+                    return None
+                if lan == retries - 1:
+                    print(f"  ⚠️ Gemini vẫn lỗi sau {retries} lần thử: {e}")
+                    break
+                cho = wait_giay * (2 ** lan)
+                print(f"  ⚠️ Gemini quá tải/lỗi tạm thời (lần {lan + 1}/{retries}): {e}. Chờ {cho}s rồi thử lại...")
+                if not _cho_roi_thu_lai(cho):
+                    print("  ⏱️ Đã hết ngân sách chờ thử lại của lần chạy này -> bỏ qua lần gọi này (sẽ tự sửa ở lần chạy sau).")
+                    break
             else:
                 print(f"  ❌ Lỗi xử lý: {e}")
                 time.sleep(3)
@@ -941,11 +978,24 @@ def doc_csv_an_toan(ten_file):
     return df.fillna("")
 
 
+def bo_chuoi_loi_tom_tat(df):
+    """Thay chuỗi báo lỗi API (do lần gọi Gemini thất bại) bằng ô trống trong bảng dùng dựng PDF,
+    để PDF không in ra những dòng như 'Lỗi kết nối và xử lý dữ liệu từ API.'"""
+    if df is None or df.empty:
+        return df
+    df = df.copy()
+    for cot in ("Tóm tắt AI (Đã xác minh)", "Tóm tắt AI"):
+        if cot in df.columns:
+            df[cot] = df[cot].apply(lambda s: "" if isinstance(s, str) and _tom_tat_loi_api(s) else s)
+    return df
+
+
 def dang_ban_tin(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack):
-    """Xuất PDF -> lưu vào kho lưu trữ (trang GitHub Pages) -> gửi email (chỉ khi đang bật)."""
+    """Xuất PDF -> lưu vào kho lưu trữ (trang GitHub Pages) -> tự sửa tóm tắt lỗi -> dịch -> gửi email (nếu bật)."""
     # PDF giữ nguyên như cũ: không đưa các chuyên mục mở rộng (chỉ hiện trên web) vào
     duong_dan_pdf, gio_hien_thi_footer = xuat_bao_cao_pdf(
-        bo_muc_chi_dang_web(df_trong_nuoc), df_cafef, df_cafebiz, bo_muc_chi_dang_web(df_quoc_te), df_mediastack
+        bo_chuoi_loi_tom_tat(bo_muc_chi_dang_web(df_trong_nuoc)), bo_chuoi_loi_tom_tat(df_cafef), bo_chuoi_loi_tom_tat(df_cafebiz),
+        bo_chuoi_loi_tom_tat(bo_muc_chi_dang_web(df_quoc_te)), bo_chuoi_loi_tom_tat(df_mediastack)
     )
 
     loi_kho = None
@@ -960,6 +1010,11 @@ def dang_ban_tin(df_trong_nuoc, df_cafef, df_cafebiz, df_quoc_te, df_mediastack)
         print(f"  ❌ Lỗi khi lưu kho lưu trữ: {e}")
 
     if loi_kho is None:
+        print("\n[Tự sửa tóm tắt] Đang tóm tắt lại các tin bị lỗi ở lần gọi Gemini trước...")
+        try:
+            chua_tom_tat_kho(goi_gemini)      # không bao giờ làm sập quy trình: lỗi chỉ được ghi log
+        except Exception as e:
+            print(f"  ⚠️ Bỏ qua bước sửa tóm tắt do lỗi: {e}")
         print("\n[Bản dịch tiếng Anh] Đang dịch các tin chưa có bản tiếng Anh...")
         try:
             dich_kho_luu_tru(goi_gemini)      # không bao giờ làm sập quy trình: lỗi chỉ được ghi log
