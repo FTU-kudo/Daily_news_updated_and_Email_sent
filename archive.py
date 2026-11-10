@@ -114,16 +114,20 @@ def _chuan_hoa(df, cot_tieu_de, cot_tom_tat, tach_nguon=False, nguon_mac_dinh=""
         if tach_nguon and " - " in tieu_de:
             phan_dau, phan_cuoi = tieu_de.rsplit(" - ", 1)
             tieu_de, nguon = phan_dau.strip(), phan_cuoi.strip()
-        ket_qua.append(
-            {
-                "time": _s(row.get("Thời gian")),
-                "category": _s(row.get("Chuyên mục")),
-                "title": tieu_de,
-                "source": nguon,
-                "summary": _dau_tien(row, cot_tom_tat),
-                "link": _s(row.get("Link")),
-            }
-        )
+        tom_tat = _dau_tien(row, cot_tom_tat)
+        tin = {
+            "time": _s(row.get("Thời gian")),
+            "category": _s(row.get("Chuyên mục")),
+            "title": tieu_de,
+            "source": nguon,
+            "summary": tom_tat,
+            "link": _s(row.get("Link")),
+        }
+        if _tom_tat_loi_api(tom_tat):
+            # Không đưa chuỗi báo lỗi lên trang web: để trống và đánh dấu "tt_loi" để lần chạy sau tự tóm tắt lại
+            tin["summary"] = ""
+            tin["tt_loi"] = 1
+        ket_qua.append(tin)
     return ket_qua
 
 
@@ -136,6 +140,12 @@ def _tom_tat_yeu(s):
     if not s or s.startswith("lỗi") or "không thể dịch" in s:
         return True
     return len(s) < 90 and "không đủ" in s
+
+
+def _tom_tat_loi_api(s):
+    """Chuỗi báo lỗi do code ghi vào khi lần gọi Gemini thất bại (khác với 'không đủ dữ liệu' do Gemini trả lời)."""
+    s = (s or "").strip().lower()
+    return s.startswith("lỗi") or "không thể dịch" in s
 
 
 def _khoa_tin(it):
@@ -181,6 +191,8 @@ def gop_ban_tin(cu, moi_theo_muc, ed, gio_hien_thi, ngay):
                 if _tom_tat_yeu(ex.get("summary")) and not _tom_tat_yeu(it.get("summary")):
                     ex["summary"] = it["summary"]
                     ex.pop("summary_en", None)      # bản dịch tiếng Anh cũ không còn khớp -> sẽ được dịch lại
+                    ex.pop("tt_loi", None)
+                    ex.pop("tt_lan", None)
                 for f in ("time", "category", "source", "link"):
                     if not ex.get(f) and it.get(f):
                         ex[f] = it[f]
