@@ -2,6 +2,7 @@
 """
 dich_bu.py — DỊCH BÙ TIẾNG ANH CHO TIN CŨ (chạy một lần bằng workflow "Dich bu tieng Anh")
 =========================================================================================
+Trước khi dịch, script cũng tóm tắt lại các tin bị lỗi tóm tắt (nếu có) trong 60 ngày gần nhất.
 Mỗi lần chạy hằng ngày chỉ dịch tối đa 200 tin (ưu tiên tin mới nhất), nên kho tin cũ được dịch dần.
 Script này dịch nhiều tin hơn trong một lần để đuổi kịp: không lấy tin mới, không tạo bản tin mới, chỉ bổ sung
 "title_en"/"summary_en" vào các file docs/data/*.json còn thiếu. Chạy lại bao nhiêu lần cũng an toàn.
@@ -26,9 +27,13 @@ def _so_nguyen(ten, mac_dinh, nho_nhat, lon_nhat):
 
 
 def chay(goi_gemini, toi_da, gioi_han_giay, thu_muc=None):
-    """Dịch bù và trả về (thống kê, mã thoát). Mã thoát 1 khi còn tin cần dịch mà không dịch được tin nào
-    (API hỏng/hết hạn mức) để GitHub báo đỏ thay vì im lặng."""
+    """Sửa các tóm tắt tiếng Việt bị lỗi (nếu có) rồi dịch bù tiếng Anh. Trả về (thống kê, mã thoát).
+    Mã thoát 1 khi còn tin cần dịch mà không dịch được tin nào (API hỏng/hết hạn mức) để GitHub báo đỏ thay vì im lặng."""
     from translate_en import dich_kho_luu_tru
+    from tom_tat_lai import chua_tom_tat_kho
+
+    # Bước 1: sửa tóm tắt bị lỗi trong 60 ngày gần nhất (để bản dịch tiếng Anh sau đó dịch đúng nội dung)
+    chua_tom_tat_kho(goi_gemini, so_ngay=60, toi_da=400, gioi_han_giay=max(60, min(600, gioi_han_giay // 3)), thu_muc=thu_muc)
 
     st = dich_kho_luu_tru(
         goi_gemini, toi_da=toi_da, gioi_han_giay=gioi_han_giay, thu_muc=thu_muc, toi_da_loi_lien_tiep=3
